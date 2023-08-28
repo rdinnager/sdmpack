@@ -1,0 +1,154 @@
+---
+title: "Week 2 Lecture"
+output: 
+  learnr::tutorial:
+    progressive: false
+    language:
+      en:
+        button:
+          runcode: Test Code
+          submitanswer: Run Code
+          questionsubmit: Submit Answer
+          questiontryagain: Change my answer
+runtime: shiny_prerendered
+description: Forests of the Future Week 9 Assignment
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(sdmpack)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    sdmpack::send_env_to_RStudio(envir_prep)
+    
+    sdmpack::set_env(envir_result)
+    
+    # try(save.image(file.path(system.file(package = "fofpack"), "week_5_progress.Rdata"),
+    #            safe = FALSE),
+    #     silent = TRUE)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker,
+                 exercise.timelimit = 300)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Week 9 Lecture Examples
+
+### Setup
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(palmerpenguins)
+
+data("penguins")
+```
+
+The following code loads the packages you will need for this assignment, and the dataset you will be using (and clears the workspace). Don't forget to always click 'Run Code' for each code box, which runs your code in RStudio, and allows you to access the results in later code boxes.
+
+```{r do_setup, exercise=TRUE}
+rm(list = ls())
+library(tidyverse)
+library(palmerpenguins)
+
+data("penguins")
+
+penguins
+```
+
+```{r do_setup-check}
+ls()
+```
+
+```{r q1}
+question_text("Does your fish species appear to cluster spatially anywhere in the world? Briefly describe the distribution:",
+              answer_fn(function(x) incorrect()),
+              allow_retry = TRUE)
+
+```
+
+
+
+```{r q2}
+question("Look at the mean `roc_auc`. Did it go down or up? By how much?",
+         answer("Went up by quite a bit", correct = TRUE),
+         answer("Didn't go up or down by very much", correct = TRUE),
+         answer("Went down by quite a bit", correct = TRUE))
+
+```
+
+
+Testing
+
+```{r gbif_sf, exercise=TRUE}
+gbif_sf <- st_as_sf(gbif, coords = ___, crs = 4326)
+
+```
+
+```{r gbif_sf-check}
+ls()
+```
+
+## Submit
+
+```{r context="server"}
+learnrhash::encoder_logic()
+```
+
+Once you have completed the assignment to your satisfaction, please click the 'generate' button below. This will create a text code that you can copy and paste into the assignment text submission form on canvas, and which I can use to regenerate your answers. Please make sure you copy the entire code. The easiest way is to click the copy button in at the top right. This will copy the entire code to the clipboard.  
+
+
+```{r encode, echo=FALSE}
+learnrhash::encoder_ui(ui_before = NULL)
+```
+
+<!--
+### Decode
+
+```{r context="server"}
+learnrhash::decoder_logic()
+```
+
+```{r decode, echo=FALSE}
+learnrhash::decoder_ui()
+```
+-->
+
