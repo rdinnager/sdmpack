@@ -192,14 +192,9 @@ That actually won't work! That is because `esquisse` is what's called a shiny ap
 ls()
 ```
 
+## Data Wrangling
 
-```{r q2}
-question("Look at the mean `roc_auc`. Did it go down or up? By how much?",
-         answer("Went up by quite a bit", correct = TRUE),
-         answer("Didn't go up or down by very much", correct = TRUE),
-         answer("Went down by quite a bit", correct = TRUE))
-
-```
+But how did the neat and tidy `penguins` data set come to be. Well, it was 'wrangled' by a data scienctist from a messy raw data set. Data wrangling can be a major part of a data scientist's (or any scientist's) job. We will cover some basic data wrangling using `tidyverse` packages.
 
 ## Packages used
 
