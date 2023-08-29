@@ -71,7 +71,9 @@ tutorial_options(exercise.checker = custom_checker,
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-## Week 9 Lecture Examples
+# Week 9 Lecture Examples
+
+## Data Visualization
 
 ### Setup
 
@@ -98,13 +100,97 @@ penguins
 ls()
 ```
 
+The `palmerpenguins` is a dataset containing various measurements from individuals of three different penguin species. The first thing we should generally do when working with a new dataset is to try and visualize it, if only to get a better sense of it. Let's make our first plot with `ggplot2`, the main visualization package in the `tidyverse`.
+
+### Exercise 1
+
+Here is an example of an exercise. This is just like what you will see in your regular assignments.
+
+This is what `ggplot2` code for making a basic plot looks like:
+
+```{r plot1, exercise=TRUE}
+ggplot(penguins, aes(x = bill_length_mm, y = body_mass_g)) +
+  geom_point()
+```
+
+```{r plot1-check}
+ls()
+```
+
+`ggplot2` plots are built up in layers using the `+` operator. Each type of layer is a different function which are added together with `+` to built a full plot. The `ggplot()` function initializes the plot. Try deleting the second layer in the code box to see what you get.
+
 ```{r q1}
-question_text("Does your fish species appear to cluster spatially anywhere in the world? Briefly describe the distribution:",
-              answer_fn(function(x) incorrect()),
+question_radio("What do you think about the grey background that is the default in {ggplot}?",
+              answer("I love it!", correct = TRUE, message = "Beauty is in the eye of the beholder, isn't it?"),
+              answer("It's hideous.", correct = TRUE, message = "You are correct."),
+              answer("It doesn't matter because I can change it if I want to.", correct = TRUE,
+                     message = "This is actually the really reaallly correct answer"),
               allow_retry = TRUE)
 
 ```
 
+Using the code box above, change the overall look of the plot by adding a theme. Try adding `+ theme_linedraw()` to the end of the code. I personally prefer `theme_minimal()` for most of my plots, but you can use whatever you like. There are also many R packages that provide different themes which do not come with the `ggplot2` package by default. If you want to completely customize your plot's appearance you can do so use the `theme()` function. Try typing `?theme` to see all the option available. We will go over another way to change the appearance of your plot without having to type a novel into your script a little bit later.
+
+### Add some more complexity
+
+In `ggplot2` we can 'map' a 'variable' to an 'aesthetic' to distinguish different parts of the plot. Now, that is a lot of terminology in one sentence you may not have heard before.
+
+See Lecture slides!
+
+Let's change the color of the points to reflect the sex of the penguins.
+
+```{r plot2, exercise=TRUE}
+ggplot(penguins, aes(bill_length_mm, body_mass_g)) +
+  geom_point(aes(color = sex)) +
+  theme_minimal()
+```
+
+```{r plot2-check}
+ls()
+```
+
+Overall, there isn't a clear separation by sex, but maybe things will look clearer if we take into account that we have three different species here. We can separate out the species by using panels (called 'facets' in `ggplot2`). This is easy to do by adding another layer to the plot.
+
+```{r plot3, exercise=TRUE}
+ggplot(penguins, aes(bill_length_mm, body_mass_g)) +
+  geom_point(aes(color = sex)) +
+  facet_grid(cols = vars(species)) +
+  theme_minimal()
+```
+
+```{r plot3-check}
+ls()
+```
+
+### Using a GUI: `esquisse`
+
+There is an overwhelming number of different ways of plotting data in `gglot2` and sometimes it can be tedious to tweak every aspect of a plot by painstakingly changing the code. One way to help with this is to use the `ggplot2` graphical user interface provided by the package `esquisse` (meaning 'sketch' in french). This allows you to manipulate the plot with a GUI but then generate the code needed to make the plot, which gives the benefit of reproducibility.
+
+```{r plot4, exercise=TRUE}
+library(esquisse)
+esquisser()
+```
+
+```{r plot4-check}
+ls()
+```
+
+That actually won't work! That is because `esquisse` is what's called a shiny app, and this tutorial is already a shiny app. A shiny app can't run a shiny app. But we can run our code in 'RStudio' and then paste the code below.
+
+```{r plot5, exercise=TRUE}
+
+
+
+
+
+
+
+
+```
+
+```{r plot5-check}
+ls()
+```
 
 
 ```{r q2}
@@ -115,17 +201,19 @@ question("Look at the mean `roc_auc`. Did it go down or up? By how much?",
 
 ```
 
+## Packages used
 
-Testing
+To install all the packages used today, which you will need for this weeks assignment you can run:
 
-```{r gbif_sf, exercise=TRUE}
-gbif_sf <- st_as_sf(gbif, coords = ___, crs = 4326)
-
+```{r install, exercise=TRUE}
+library(esquisse)
+esquisser()
 ```
 
-```{r gbif_sf-check}
+```{r install-check}
 ls()
 ```
+
 
 ## Submit
 
