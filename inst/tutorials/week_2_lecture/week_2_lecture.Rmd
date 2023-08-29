@@ -196,19 +196,105 @@ ls()
 
 But how did the neat and tidy `penguins` data set come to be. Well, it was 'wrangled' by a data scienctist from a messy raw data set. Data wrangling can be a major part of a data scientist's (or any scientist's) job. We will cover some basic data wrangling using `tidyverse` packages.
 
+Let's take a look at the raw data (and load a few more useful packages).
+
+```{r wrangle_penguin1, exercise=TRUE}
+library(lubridate)
+library(janitor)
+
+penguins_raw
+
+```
+
+```{r wrangle_penguin1-check}
+ls()
+```
+
+The most important concept in `tidyverse` data wrangling is the idea of a data 'verb'. You use 'verbs' to perform actions in a stepwise fashion on data.
+
+See Lecture slides for more info.
+
+The complete code used to get from `penguins_raw` to `penguins` is in the code box below. You don't need to know or understand all of these steps but it should give you and idea of the power of `tidyverse` verbs and the pipe for concisely wrangling data.
+
+```{r complete_penguin, exercise=TRUE}
+library(lubridate)
+library(janitor)
+
+penguins_df <- penguins_raw |>
+  clean_names() |>
+  mutate(species_short = word(species, 1)) |>
+  mutate(sex = tolower(sex)) |>
+  mutate(year = as.integer(lubridate::year(date_egg))) |>
+  mutate(across(where(is.character), as.factor)) |>
+  mutate(flipper_length_mm = as.integer(flipper_length_mm)) |>
+  mutate(body_mass_g = as.integer(body_mass_g)) |>
+  rename(bill_length_mm = culmen_length_mm,
+         bill_depth_mm = culmen_depth_mm) |>
+  select(species_short,
+         island,
+         bill_length_mm,
+         bill_depth_mm,
+         flipper_length_mm,
+         body_mass_g,
+         sex,
+         year) |>
+  rename(species = species_short) |>
+  as.data.frame()
+
+```
+
+```{r complete_penguin-check}
+ls()
+```
+
+### Exercise 2: Summarizing Data
+
+A common task of data wrangling is summarizing. Summarizing means to take a dataset and make it smaller by using summary statistics over groups. Summary statistics are things like the mean, the median, the variance, the range, etc. You will often hear about, for example, 'median household income' as an indicator of the economic advantage of different areas or groups of people. This is a summary over a grouping variable. Let's try creating some summaries of our penguin data.
+
+```{r summary_penguin, exercise=TRUE}
+
+penguins_summ <- penguins |>
+  group_by(species, sex) |> ## sets variables as 'grouping' variables for later verbs
+  summarise(mean_body_mass = mean(body_mass_g),
+            var_body_mass = var(body_mass_g))
+
+penguins_summ
+
+```
+
+```{r summary_penguin-check}
+ls()
+```
+
 ## Packages used
 
-To install all the packages used today, which you will need for this weeks assignment you can run:
+To install all the packages used today, which you will need for this weeks assignment you can run following to check which are already installed (any packages missing will throw a warning)
+
+```{r check_install, exercise=TRUE}
+require(tidyverse)
+require(palmerpenguins)
+require(esquisse)
+require(lubridate) # not required for assignment
+require(janitor) # not required for assignment
+```
+
+```{r check_install-check}
+ls()
+```
+
+Install any one you missed by copying from the code below and pasting it into the RStudio console (it won't work if you run it inside the tutorial).
 
 ```{r install, exercise=TRUE}
-library(esquisse)
-esquisser()
+install.packages(tidyverse)
+install.packages(palmerpenguins)
+install.packages(esquisse)
+install.packages(lubridate)
+install.packages(janitor)
 ```
 
 ```{r install-check}
 ls()
 ```
-
 
 ## Submit
 
