@@ -1,5 +1,5 @@
 ---
-title: "Week 2 Lecture"
+title: "Week 2 Assignment"
 output: 
   learnr::tutorial:
     progressive: false
@@ -11,7 +11,7 @@ output:
           questionsubmit: Submit Answer
           questiontryagain: Change my answer
 runtime: shiny_prerendered
-description: SDM Course Week 2 Lecture
+description: SDM Course Week 2 Assignment
 ---
 
 ```{css echo=FALSE}
@@ -71,7 +71,7 @@ tutorial_options(exercise.checker = custom_checker,
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-# Week 2 Lecture Examples
+# Week 2 Assignment
 
 ## Data Visualization
 
@@ -83,6 +83,8 @@ library(palmerpenguins)
 
 data("penguins")
 ```
+
+Please complete the assignment by making sure you follow the instructions in each of the Exercises (there are three of them, and should be sections titled 'Exercise 1', Exercise 2', and 'Exercise 3'). Make sure you modify the code in any code boxes that you are asked to modify. If the code remains unchanged you will not get marks for that exercise. Be careful with the 'Start Over' button as this will replace any code you wrote with what was originally in the code box.
 
 The following code loads the packages you will need for this assignment, and the dataset you will be using (and clears the workspace). Don't forget to always click 'Run Code' for each code box, which runs your code in RStudio, and allows you to access the results in later code boxes.
 
@@ -102,9 +104,9 @@ ls()
 
 The `palmerpenguins` is a dataset containing various measurements from individuals of three different penguin species. The first thing we should generally do when working with a new dataset is to try and visualize it, if only to get a better sense of it. Let's make our first plot with `ggplot2`, the main visualization package in the `tidyverse`.
 
-### Exercise 1
+### ggplot2
 
-Here is an example of an exercise. This is just like what you will see in your regular assignments.
+Add a theme to a `ggplot`.
 
 This is what `ggplot2` code for making a basic plot looks like:
 
@@ -129,13 +131,28 @@ question_radio("What do you think about the grey background that is the default 
 
 ```
 
-Using the code box above, change the overall look of the plot by adding a theme. Try adding `+ theme_linedraw()` to the end of the code. I personally prefer `theme_minimal()` for most of my plots, but you can use whatever you like. There are also many R packages that provide different themes which do not come with the `ggplot2` package by default. If you want to completely customize your plot's appearance you can do so use the `theme()` function. Try typing `?theme` to see all the option available. We will go over another way to change the appearance of your plot without having to type a novel into your script a little bit later.
+### Exercise 1
+
+Using the code box below, change the overall look of the plot by adding a theme. Use any theme you want. You can try out a bunch and find the one you like the best if you want.
+
+```{r plot1_1, exercise=TRUE}
+ggplot(penguins, aes(x = bill_length_mm, y = body_mass_g)) +
+  geom_point()
+```
+
+```{r plot1_1-check}
+ls()
+```
+
+<div id="plot1_1-hint">
+**Hint:** Try typing `theme_` and the autocomplete should offer suggestions.
+</div>
 
 ### Add some more complexity
 
 In `ggplot2` we can 'map' a 'variable' to an 'aesthetic' to distinguish different parts of the plot. Now, that is a lot of terminology in one sentence you may not have heard before.
 
-See Lecture slides!
+See the [Week 2 Lecture Slides](https://docs.google.com/presentation/d/1yuUylI9WMYkMfbrUXFOsR9G3vpfLe5QOLakulTOsNGc/edit?usp=sharing) for definitions of this terminology.
 
 Let's change the color of the points to reflect the sex of the penguins.
 
@@ -175,22 +192,26 @@ esquisser()
 ls()
 ```
 
-That actually won't work! That is because `esquisse` is what's called a shiny app, and this tutorial is already a shiny app. A shiny app can't run a shiny app. But we can run our code in 'RStudio' and then paste the code below.
+That actually won't work! That is because `esquisse` is what's called a shiny app, and this tutorial is already a shiny app. A shiny app can't run a shiny app. But we can run our code in 'RStudio'. Paste the code above into the console to try it out! 
+
+### Exercise 2
+
+Either use `esquisse` or simply modify the code below to create a plot using three or four variables. Don't use the exact same variables as already there. Change at least one of the variables to a new one, and change at least one of the aesthetic mappings (e.g. map sex to facte instead of colour, etc.)
 
 ```{r plot5, exercise=TRUE}
-
-
-
-
-
-
-
-
+ggplot(penguins, aes(bill_length_mm, body_mass_g)) +
+  geom_point(aes(color = sex)) +
+  facet_grid(cols = vars(species)) +
+  theme_minimal()
 ```
 
 ```{r plot5-check}
 ls()
 ```
+
+<div id="plot5-hint">
+**Hint:** You can use the 'environment browser' in RStudio to look at the `penguins` dataset and see what other variables are available for use in the plot.
+</div>
 
 ## Data Wrangling
 
@@ -212,9 +233,9 @@ ls()
 
 The most important concept in `tidyverse` data wrangling is the idea of a data 'verb'. You use 'verbs' to perform actions in a stepwise fashion on data.
 
-See Lecture slides for more info.
+See [Week 2 Lecture Slides](https://docs.google.com/presentation/d/1yuUylI9WMYkMfbrUXFOsR9G3vpfLe5QOLakulTOsNGc/edit?usp=sharing) for more info.
 
-The complete code used to get from `penguins_raw` to `penguins` is in the code box below. You don't need to know or understand all of these steps but it should give you and idea of the power of `tidyverse` verbs and the pipe for concisely wrangling data.
+The complete code used to get from `penguins_raw` to `penguins` is in the code box below. You don't need to know or understand all of these steps but it should give you and idea of the power of `tidyverse` verbs and the pipe for concisely wrangling data. Try running the code an comparing `penguins_df` to `penguins_raw`. They should be the same!
 
 ```{r complete_penguin, exercise=TRUE}
 library(lubridate)
@@ -247,7 +268,7 @@ penguins_df <- penguins_raw |>
 ls()
 ```
 
-### Exercise 2: Summarizing Data
+### Summarizing Data
 
 A common task of data wrangling is summarizing. Summarizing means to take a dataset and make it smaller by using summary statistics over groups. Summary statistics are things like the mean, the median, the variance, the range, etc. You will often hear about, for example, 'median household income' as an indicator of the economic advantage of different areas or groups of people. This is a summary over a grouping variable. Let's try creating some summaries of our penguin data.
 
@@ -265,6 +286,27 @@ penguins_summ
 ```{r summary_penguin-check}
 ls()
 ```
+
+### Exercise 3
+
+In the code box below, modify the code to summarise over a different set of grouping variables (change at least one of species or sex). Also, summarize a different variable or set of variables (change `body_mass_g` to something else). There is a bonus mark if you can correctly use a different summary function besides `mean()` or `var()`.
+
+```{r summary_penguin2, exercise=TRUE}
+
+penguins_summ <- penguins |>
+  group_by(species, sex) |> ## sets variables as 'grouping' variables for later verbs
+  summarise(mean_body_mass = mean(body_mass_g),
+            var_body_mass = var(body_mass_g))
+
+penguins_summ
+
+```
+
+```{r summary_penguin2-check}
+ls()
+```
+
+That's it for today! Please go to the 'Submit' section and generate your hash code.
 
 ## Packages used
 
