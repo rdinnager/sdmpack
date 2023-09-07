@@ -1,0 +1,440 @@
+---
+title: "Week 3 Lecture: Introduction to Species Distribution Modelling (SDM)"
+output:
+  ioslides_presentation:
+    widescreen: true
+runtime: shiny_prerendered
+description: FIU SDM Course Week 3 Lecture 
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(sdmpack)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    fofpack::send_env_to_RStudio(envir_prep)
+    
+    rstudioapi::sendToConsole(user_code, focus = TRUE)
+    
+    fofpack::set_env(envir_result)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r setup, include=FALSE}
+library(sdmpack)
+library(tidyverse)
+library(tidymodels)
+library(sf)
+library(mapview)
+
+data("RF_abund")
+fish_dat <- RF_abund %>%
+  filter(SpeciesName == "Thalassoma pavo")
+```
+
+## Week 3 Lecture
+
+### Species Distribution Modelling
+
+Russell Dinnage
+
+## What are SDMs
+
+* Sometimes called Environmental Niche Models (ENMs, I prefer SDM)
+* Possible the most well-developed application of classic Data Science and Machine Learning (ML) in Biology
+* They take in data on the environment at different sites or parts of a landscape and try predict where (or when, or how many) organisms will occur there. Data on the species themselves can also be used
+* Traditionally done on single species at a time, but 'joint' species distribution models are increasingly common
+
+## SDMs as Data Science
+
+- To make an SDM you use a Data Science workflow
+- The final model used to predict species occurrence is fit using Machine Learning techniques
+- A Data Science workflow has two major components: 
+  - Data
+  - a Model
+ 
+## Data and Models
+
+* Data Processing Steps
+* Model Building
+
+* Data feeds into Models
+* Models inform Data processing steps
+
+![](images/week_5_lecture_insertimage_1.png)
+
+
+## Data Science Steps
+
+> 1. A Question
+> 2. Collect Data
+> 3. Munge / Clean Data
+> 4. Transform Data for Model
+> 5. Analyze Data using Model
+> 6. Tune Model
+> 7. Validate / Test Model
+> 8. Interpret Model
+
+## Data Science Steps
+
+1. **A Question**
+2. **Collect Data**
+3. **Munge / Clean Data**
+4. Transform Data for Model
+5. Analyze Data using Model
+6. Tune Model
+7. Validate / Test Model
+8. Interpret Model
+
+- We have covered some of this already
+- We will cover the rest in the next 4 weeks
+
+## What is a Model?
+
+- Encodes a relationship between a set of inputs and outputs
+- For an SDM this is a (potentially complex and nonlinear) function that takes environmental variables as input and  its output is an occurrence pattern (could be abundance, probability, suitability, etc.)
+- Different Models differ in their assumptions, or 'inductive biases', and their parameters
+- Models are 'fit' to data
+  - Parameters are chosen based on how well the Model's output matches the real data
+  - This is an optimization problem
+
+## The Simplest Model?
+
+### The Linear Model
+
+- Models outputs as a 'linear' function of inputs
+- Inputs are 'predictor' variables
+- Outputs are predictions, and they are compared to 'response' variable(s)
+- Assumes responses are a additive linear function of predictors
+
+## Fit a Linear Model to Reef Fish Data
+### Setup
+
+```{r do_setup, exercise=TRUE}
+library(sdmpack)
+library(tidyverse)
+library(tidymodels)
+```
+
+```{r do_setup-check}
+ls()
+```
+
+## Fit a Linear Model to Reef Fish Data
+
+- Base R has a good collection of statistical methods including the linear model.
+- `RF_abund` has data on the abundance of different reef species at different reefs around the world
+
+```{r map, echo=FALSE}
+data("RF_sites")
+RF_sites <- sf::st_as_sf(RF_sites, coords = c("SiteLong", "SiteLat"),
+                         crs = 4326)
+mapView(RF_sites)
+```
+
+```{r RF1, exercise=TRUE}
+data("RF_abund")
+RF_abund
+```
+
+```{r RF1-check}
+ls()
+```
+
+## Fit a Linear Model to Reef Fish Data
+
+- First let's choose a fish species to model
+- Thalassoma pavo: [Ornate Wrasse](https://www.fishbase.se/summary/Thalassoma-pavo.html)
+
+```{r, out.width = "300px"}
+knitr::include_graphics("images/week_5_lecture_insertimage_2.png")
+```
+
+```{r RF2, exercise=TRUE}
+fish_dat <- RF_abund %>%
+  filter(SpeciesName == "Thalassoma pavo")
+```
+
+```{r RF2-check}
+ls()
+```
+
+## Fit a Linear Model to Reef Fish Data
+
+- `lm()` is the basic linear model function in R.
+- Let's do a linear model on our fish species with temperature as a predictor
+
+```{r RF3, exercise=TRUE}
+mod <- lm(
+  AbundanceAdult40 ~ MeanTemp_CoralWatch, 
+  data = fish_dat)
+```
+
+```{r RF3-check}
+ls()
+```
+
+## R 'formulas'
+
+```{r form, echo=TRUE, eval=FALSE}
+mod <- lm(
+  ### <b>
+  AbundanceAdult40 ~ MeanTemp_CoralWatch, 
+  ### </b>
+  data = fish_dat)
+```
+
+- A formula is a special data structure in R
+- It is specified using an expression of this form: `lhs ~ rhs`, where `lhs` stands for Left Hand Side, and `rhs` stands for Right Hand Side. 
+- Formulas compactly express a relationship between variables: `lhs` contains 'response' variables that we wish to model as a function of the variables on the `rhs`: the 'predictor' variable
+- Both `lhs` and `rhs` can contain multiple variables and function calls (we will see examples of that later on)
+- Though a formula can be missing `lhs`, they must always have a `~` and a `rhs` (`~ rhs` is a valid formula)
+
+---
+
+```{r RF4, exercise=TRUE}
+summary(mod)
+```
+
+```{r RF4-check}
+ls()
+```
+
+## Fit a Linear Model to Reef Fish Data
+
+```{r RF5, exercise=TRUE, fig.height=3}
+ggplot(fish_dat, aes(x = MeanTemp_CoralWatch, y = AbundanceAdult40)) +
+  geom_smooth(method = lm, se = FALSE, color = "red") + geom_point() + theme_minimal()
+```
+
+It is much easier to tell if the model is useful at all by visualizing.
+
+
+```{r RF5-check}
+ls()
+```
+
+## Fit a Linear Model to Reef Fish Data
+
+- This model is not a good fit, and there might be some other problems
+  - Models have assumptions
+  - Does our data fit the assumptions?
+- I won't go through all linear model assumption, but one is that the distribution of the data is not too extreme (skewed, or with long tails)
+
+## Fit a Linear Model to Reef Fish Data
+
+Distribution of Abundance:
+
+```{r abund_dist, echo=TRUE}
+ hist(fish_dat$AbundanceAdult40, breaks = 100)
+```
+
+## Fit a Linear Model to Reef Fish Data
+
+- One way to 'fix' the data is to transform it, for example:
+
+```{r abund_dist2,echo=TRUE}
+ hist(log(fish_dat$AbundanceAdult40), breaks = 50)
+```
+
+---
+
+However the main problem seems to stem from the fact that a line is not a good description on the response. Therefore, most SDM methods that are actually used allow for non-linear relationships. In this case (and many cases), some kind of hump shaped function might make sense.
+
+```{r plotit}
+p <- ggplot(fish_dat, aes(x = MeanTemp_CoralWatch, y = AbundanceAdult40)) +
+  geom_smooth(se = FALSE, color = "red") + geom_point() + theme_minimal()
+suppressMessages(print(p))
+```
+
+## `tidymodels`
+
+- `tidymodels` is an R package for statistical and machine learning models
+- It shares the philosophy of programming and data analysis with `tidyverse`
+- It has functions that mirror the step of Data Science that I presented earlier
+- Like `tidyverse` it is a meta-package, bundling several other packages together
+
+## `parsnip`: a `tidymodels` package to fit models
+
+- `parsnip` separates the model 'structure' from the implementation
+- It unifies inputs and outputs, so that it is simple to switch between different modelling methods without writing new code
+
+## Fit a Linear Model with `parsnip`
+
+```{r parsnip1, exercise=TRUE}
+mod_pars <- linear_reg(engine = "lm")
+mod_pars
+```
+
+```{r parsnip1-check}
+ls()
+```
+
+## Fit a Linear Model with `parsnip`
+
+- A model is fit using the `fit()` function
+- `parsnip` is designed work with pipe operators (`%>%` or `|>`) 
+
+```{r parsnip2, exercise=TRUE}
+mod_pars <- linear_reg(engine = "lm") %>%
+  fit(AbundanceAdult40 ~ MeanTemp_CoralWatch,
+      data = fish_dat)
+mod_pars
+```
+
+```{r parsnip2-check}
+ls()
+```
+
+## Fit a Linear Model with `parsnip`
+
+- Parameters are extracted with the `tidy()` function.
+
+```{r parsnip3, exercise=TRUE}
+mod_summ <- tidy(mod_pars)
+mod_summ
+```
+
+```{r parsnip3-check}
+ls()
+```
+
+## Fit a Linear Model with `parsnip`
+
+- Visualize the fit by prediction
+
+```{r parsnip4, exercise=TRUE}
+preds <- predict(mod_pars, new_data = fish_dat)
+preds
+pred_dat <- fish_dat %>%
+  bind_cols(preds)
+```
+
+```{r parsnip4-check}
+ls()
+```
+
+---
+
+```{r parsnip5, exercise=TRUE}
+p <- ggplot(pred_dat, aes(x = MeanTemp_CoralWatch, y = .pred)) +
+  geom_line() + geom_point(aes(y = AbundanceAdult40)) + 
+  theme_minimal()
+suppressMessages(print(p))
+```
+
+```{r parsnip5-check}
+ls()
+```
+
+---
+
+```{r parsnip6, exercise=TRUE}
+p <- ggplot(pred_dat, aes(x = MeanTemp_CoralWatch, y = .pred)) +
+  geom_line() + geom_point(aes(y = AbundanceAdult40)) + 
+  scale_y_continuous(trans = "log1p") + theme_minimal()
+suppressMessages(print(p))
+```
+
+```{r parsnip6-check}
+ls()
+```
+
+## The power of `parsnip`
+
+- Now that the model is specified in `parsnip`, it is easy to change our model to one that can model nonlinear relationships easily. Let's try doing a gradient boosted decision tree (you don't need to know what that is for now).
+
+```{r randforest1, exercise=TRUE}
+mod_pars2 <- boost_tree(mode = "regression") %>%
+  fit(AbundanceAdult40 ~ MeanTemp_CoralWatch,
+      data = fish_dat)
+mod_pars2
+```
+
+```{r randforest1-check}
+ls()
+```
+
+## The power of `parsnip`
+
+```{r randforest2, exercise=TRUE}
+preds2 <- predict(mod_pars2, new_data = fish_dat)
+pred_dat2 <- fish_dat %>%
+  bind_cols(preds2) 
+```
+
+```{r randforest2-check}
+ls()
+```
+
+## The power of `parsnip`
+
+```{r randforest3, exercise=TRUE}
+p <- ggplot(pred_dat2, aes(x = MeanTemp_CoralWatch, y = .pred)) +
+  geom_line() + geom_point(aes(y = AbundanceAdult40)) + 
+  scale_y_continuous(trans = "log1p") + theme_minimal()
+suppressMessages(print(p))
+```
+
+```{r randforest3-check}
+ls()
+```
+
+## Overfitting
+
+An important concept in Data Science and Machine Learning is the idea of overfitting. The above model appears to 'overfit' the data -- its predictions jump around wildly to try and fit each individual data point. But this in not likely to generalize well if applied to a new dataset. We reduce overfitting by tuning the 'hyper-parameters' of the algorithm to make it produce 'smoother' predictions. Smoothed prediction are more likely to generalize better to new datasets. This is accomplished using a method called cross-validation, which we will cover in depth in Week 7.
+
+---
+
+- Next week will be: Reading Assignment 
+  - Read another section of Intro to Statistical Learning and a scientific paper on SDMs (I'll assign both)
+  - Answer a multiple choice quiz about the readings
+  - I will also provide another Tutorial to help you prepare for Week 5
+  - It will not be marked, but would be good practice to complete
+
+- Week 5 we will cover:
+  - How to go from abundance data to presence / absence (e.g. occurrences)
+  - How to include data preprocessing and model fitting in one workflow using `tidymodels`
+  - A little bit of ecological niche theory to understand what SDMs represent and why they are important
+
