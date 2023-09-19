@@ -1,0 +1,486 @@
+---
+title: "SDM Course Week 5 Lecture"
+output: 
+  ioslides_presentation:
+    widescreen: true
+runtime: shiny_prerendered
+description: SDM Course Week 5 Lecture
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(sdmpack)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    fofpack::send_env_to_RStudio(envir_prep)
+    
+    rstudioapi::sendToConsole(user_code, focus = TRUE)
+    
+    fofpack::set_env(envir_result)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r setup1, include=FALSE}
+library(sdmpack)
+library(tidyverse)
+library(tidymodels)
+library(car)
+
+data("IRC")
+data("RF_abund")
+fish_dat <- RF_abund |>
+  filter(SpeciesName == "Thalassoma pavo") |>
+  mutate(Presence = as.factor(Presence))
+
+```
+
+## SDM Course Week 5
+
+### Species Distribution Modelling 2
+
+- Last week we learned how to use `tidymodels` to fit a model to data
+- We modelled the abundance of fish species at different reefs based on their mean temperatures
+- Today we will talk about modelling occurrence data, where we have data on the presence or absence of species at particular sites
+- We will also learn how to preprocess data using `tidymodels`, with the `recipes` package
+
+## Ecological Niche Theory
+
+- All species have an ecological niche
+- An Ecological niche is the position of a species within an ecosystem 
+    - The conditions necessary for persistence of the species
+    - Its ecological role in the ecosystem
+- Combining both more formally:
+    - A niche is: the part of ecological space (defined by all combinations of 'scenopoetic' environmental conditions) where the species population can persist and thus utilize resources and impact its environment
+    
+## Ecological Niche Theory
+
+- Niches are often visualized or conceptualized as hump-shaped distributions along an environmental variable
+
+![](images/A+single+niche+axis+e.g.,+pH,+temperature,+or+soil+moisture.jpg)
+## Ecological Niche Theory
+
+- Compare that with the model predictions I made in last lecture:
+
+![](images/2022-09-23 15_09_30-Week 5 Lecture Introduction to Species Distribution Modelling (SDM).pdf - Work -.png)
+
+## Generalise to many dimensions 
+
+- Environmental 'hypervolume'
+
+
+![3D Hypervolume](images/pnas_movies1.webp)
+
+
+## Review 
+
+## Data Science Steps
+
+1. **A Question**
+2. **Collect Data**
+3. **Munge / Clean Data**
+4. **Transform Data for Model**
+5. **Analyze Data using Model**
+6. Tune Model
+7. Validate / Test Model
+8. Interpret Model
+
+## This week
+
+1. A Question
+2. Collect Data
+3. Munge / Clean Data
+4. **Transform Data for Model**
+5. **Analyze Data using Model**
+6. Tune Model
+7. **Validate / Test Model**
+8. Interpret Model
+
+---
+
+- Modelling fish abundance
+
+```{r RF2, exercise=TRUE}
+data("RF_abund")
+fish_dat <- RF_abund |>
+  filter(SpeciesName == "Thalassoma pavo") |>
+  mutate(Presence = as.factor(Presence))
+```
+
+```{r RF2-check}
+ls()
+```
+
+- What if we only had presence / absence data?
+
+## Presence / Absence Data
+
+- We are not really modelling numeric data anymore
+- Presence or Absence are categories
+- We do a classification Model, and classify into the present or absent category
+- Binary classification models typically output a 'probability', a number between 0 and 1
+- Observed data is compared to output using the 'binomial' probability distribution
+
+## Presence / Absence Data
+
+- R has a number of probability distribution built-in which we can use to explore
+
+```{r binomial, exercise=TRUE}
+rbinom(100, 1, 0.5)
+rbinom(100, 1, 0.75)
+rbinom(100, 1, 0.25)
+
+curve(dbinom(x, size = 100, 0.5), 0, 100)
+```
+
+```{r pine_where-check}
+ls()
+```
+
+## `RF_abund` includes presence/absence data column
+
+```{r RF1, exercise=TRUE}
+fish_dat$Presence
+```
+
+```{r RF1-check}
+ls()
+```
+
+## Let's model fish occurrence
+
+- Use two variables: Mean Temperature and Depth
+- In order to make them more comparable we will 'standardise' them
+- We will also test our model by creating a test set
+
+---
+
+- Split off a test set:
+
+```{r RF22, exercise=TRUE}
+set.seed(1234)
+data_split <- initial_split(fish_dat, 0.8, strata = Presence)
+
+train_data <- training(data_split)
+test_data <- testing(data_split)
+
+train_data
+test_data
+```
+
+```{r RF22-check}
+ls()
+```
+
+## Transform data
+
+- Make symmetric and non-skewed (Yeo-Johnson transformation)
+- Flexible transformation that needs a parameter, which is usually chosen based on an optimization with the training data
+- Standardise (make mean zero, and standard deviation 1)
+- Before:
+
+```{r RF_plot, exercise=TRUE}
+s_dat <- train_data |>
+  select(MeanTemp_CoralWatch, Depth_Site) |>
+  pivot_longer(cols = everything(), values_to = "Value", names_to = "Variable")
+ggplot(s_dat, aes(Value)) +
+  geom_histogram(bins = 30) +
+  facet_wrap(vars(Variable), nrow = 2, scales = "free") +
+  theme_minimal()
+```
+
+```{r RF_plot-check}
+ls()
+```
+
+---
+
+```{r RF3, exercise=TRUE}
+MeanTemp_yj <- car::powerTransform(train_data$MeanTemp_CoralWatch,
+                                   family = "yjPower")
+Depth_yj <- car::powerTransform(train_data$Depth_Site,
+                                family = "yjPower")
+MeanTemp_yj
+Depth_yj
+
+train_data <- train_data |>
+  mutate(MeanTemp_tr = car::yjPower(MeanTemp_CoralWatch, MeanTemp_yj$roundlam),
+         Depth_tr = car::yjPower(Depth_Site, Depth_yj$roundlam))
+```
+
+```{r RF3-check}
+ls()
+```
+
+---
+
+- After:
+
+```{r RF_plot2, exercise=TRUE}
+s_dat <- train_data |>
+  select(MeanTemp_tr, Depth_tr) |>
+  pivot_longer(cols = everything(), values_to = "Value", names_to = "Variable")
+ggplot(s_dat, aes(Value)) +
+  geom_histogram(bins = 30) +
+  facet_wrap(vars(Variable), nrow = 2, scales = "free") +
+  theme_minimal()
+```
+
+```{r RF_plot2-check}
+ls()
+```
+
+## What about the test data?
+
+- When we use the model to predict the occurrence on the test set, the data must be transformed in exactly the same way as the training set
+- This means we need to keep our lambda parameter fit on the training data and apply the same parameter to transform the test data
+- The standardisation also requires parameters from the training data
+- Keeping track of these transformations manually is dangerous
+- A common mistake is to transform the test data using parameters derived from the test data, this makes the test data incomparable to the training data
+
+## Recipes helps to solve this issue
+
+- A `recipe` is a set of steps applied to data before modelling
+- Everything is kept track of by `tidymodels` so that the steps are applied correctly to test data after the model is fit
+- Let's make a recipe
+
+```{r recipe1, exercise=TRUE}
+RF_recipe <- recipe(train_data,
+                    Presence ~ MeanTemp_CoralWatch + Depth_Site)
+RF_recipe
+```
+
+```{r recipe1-check}
+ls()
+```
+
+## Add Steps to the `recipe`
+
+```{r recipe2, exercise=TRUE}
+RF_recipe <- recipe(train_data,
+                    Presence ~ MeanTemp_CoralWatch + Depth_Site) |>
+  step_YeoJohnson(MeanTemp_CoralWatch, Depth_Site) |>
+  step_normalize(MeanTemp_CoralWatch, Depth_Site)
+RF_recipe
+```
+
+```{r recipe2-check}
+ls()
+```
+
+## Prep the `recipe`
+
+- Prepping a recipe estimates any required parameters
+
+```{r recipe3, exercise=TRUE}
+RF_recipe <- prep(RF_recipe)
+RF_recipe
+```
+
+```{r recipe3-check}
+ls()
+```
+
+## Bake the `recipe`
+
+- Baking applies the steps to a dataset
+
+```{r recipe4, exercise=TRUE}
+train_data_tr <- bake(RF_recipe, train_data)
+train_data_tr
+```
+
+```{r recipe4-check}
+ls()
+```
+
+---
+
+The data now looks like:
+
+```{r RF_plot3, exercise=TRUE}
+s_dat <- train_data_tr |> select(MeanTemp_CoralWatch, Depth_Site) |> pivot_longer(cols = everything(), values_to = "Value", names_to = "Variable")
+ggplot(s_dat, aes(Value)) + geom_histogram(bins = 30) + facet_wrap(vars(Variable), nrow = 2, scales = "free") + theme_minimal()
+```
+
+```{r RF_plot3-check}
+ls()
+```
+
+## Bake the test data
+
+- We can now easily apply the exact same data manipulation to the test data
+
+```{r recipe5, exercise=TRUE}
+test_data_tr <- bake(RF_recipe, test_data)
+test_data_tr
+```
+
+```{r recipe5-check}
+ls()
+```
+
+## Combine a `recipe` and a `model`
+
+```{r model1, exercise=TRUE}
+RF_mod <-
+  boost_tree() |>
+  set_engine('xgboost') |>
+  set_mode('classification')
+
+RF_mod
+
+```
+
+```{r model1-check}
+ls()
+```
+
+## A `workflow` is a `recipe` and a `model`
+
+```{r wf1, exercise=TRUE}
+RF_wf <- workflow() |>
+  add_recipe(RF_recipe) |>
+  add_model(RF_mod)
+
+RF_wf
+
+```
+
+```{r wf1-check}
+ls()
+```
+
+## Use `fit` to run a workflow
+
+```{r wf2, exercise=TRUE}
+RF_fit <- RF_wf |>
+  fit(train_data)
+
+RF_fit
+
+```
+
+```{r wf2-check}
+ls()
+```
+
+## Make predictions
+
+- Predict the test data
+- The workflow knows to apply the recipe to the test data first
+
+```{r wf5, exercise=TRUE}
+
+predict(RF_fit, test_data)
+predict(RF_fit, test_data, type = "prob")
+
+```
+
+```{r wf5-check}
+ls()
+```
+
+
+## Augment data with predictions
+
+```{r wf6, exercise=TRUE}
+
+RF_test_preds <- augment(RF_fit, test_data)
+
+```
+
+```{r wf6-check}
+ls()
+```
+
+## At last we test the fit based on test data
+
+
+```{r wf7, exercise=TRUE}
+
+RF_test_preds |> 
+  roc_curve(.pred_0, truth = Presence) |> 
+  autoplot()
+
+```
+
+```{r wf7-check}
+ls()
+```
+
+---
+
+```{r wf8, exercise=TRUE}
+
+RF_test_preds |> 
+  roc_auc(.pred_0, truth = Presence)
+
+```
+
+```{r wf8-check}
+ls()
+```
+
+## Plot predictions and original data
+
+```{r b3, exercise=TRUE}
+pred_dat <- cross_df(list(MeanTemp_CoralWatch = seq(min(fish_dat$MeanTemp_CoralWatch),
+                                                    max(fish_dat$MeanTemp_CoralWatch),
+                                                    length.out = 100),
+                            Depth_Site = seq(min(fish_dat$Depth_Site),
+                                             max(fish_dat$Depth_Site),
+                                             length.out = 100)))
+
+newdat <- augment(RF_fit, pred_dat)
+
+ggplot(newdat, aes(MeanTemp_CoralWatch, Depth_Site)) +
+  geom_contour_filled(aes(z = .pred_1)) +
+  geom_point(aes(size = Presence), data = fish_dat, alpha = 0.6) +
+  theme_minimal()
+```
+
+```{r b3-check}
+ls()
+```
+
