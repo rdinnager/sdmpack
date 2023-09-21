@@ -34,9 +34,9 @@ if(!require(devtools)) {
 
 Once `devtools` is installed, then you can run the following:
 
-```{r install_sdmpack}
+```{r install_sdmpack, eval=FALSE}
 library(devtools)
-install_github("rdinnager/sdmpack", dependencies = TRUE, upgrade = TRUE)
+install_github("rdinnager/sdmpack")
 ```
 
 Note that if `devtools` has not been installed properly then `library(devtools)`
@@ -58,15 +58,6 @@ In most cases this can be ignored because the package was restored from the old 
 
 To test if `sdmpack` has been installed properly, run `library(sdmpack)`, and
 make sure you get no errors. 
-
-**###Important**: To make sure `sdmpack` has successfully been updated to the latest version run:
-
-```{r check_version}
-library(sdmpack)
-sdmpack_up_to_date()
-```
-
-If your `sdmpack` is not up to date this function will warn you and provide instructions on how up date.
 
 Once `sdmpack` is installed, assignments should appear in the 'Tutorial' pane of RStudio, where they will be prefixed by the week (e.g. Week 3: Visualising Tidy Data). If they do not appear, try restarting R by clicking 'Session', then 'Restart R' from the RStudio menu:
 
