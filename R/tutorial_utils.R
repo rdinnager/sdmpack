@@ -35,8 +35,8 @@ decoder_ui = function() {
 obj_to_text = function(obj) {
 
   obj <- obj %>%
-    dplyr::filter(type == "exercise",
-                  grepl("exercise_", label, fixed = TRUE))
+    dplyr::filter(type %in% c("exercise", "question"),
+                  grepl("exercise_|question_", label))
 
   if(nrow(obj) == 0) {
     return(c("Nothing to see here! It looks like you haven't filled",

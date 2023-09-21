@@ -55,7 +55,7 @@ custom_checker <- function(label, user_code, check_code, envir_result, evaluate_
     
     rstudioapi::sendToConsole(user_code, focus = TRUE)
     
-    fofpack::set_env(envir_result)
+    sdmpack::set_env(envir_result)
     
     # try(save.image(file.path(system.file(package = "fofpack"), "week_5_progress.Rdata"),
     #            safe = FALSE),
@@ -73,7 +73,7 @@ tutorial_options(exercise.checker = custom_checker,
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-## Forests of the Future Week 5 Assignment {data-progressive=TRUE}
+## Setup
 
 ### Getting started with Species Distribution Modelling
 
@@ -82,23 +82,20 @@ Species Distribution Modelling is fundamentally an exercise in predicting the oc
 ### Setup
 
 ```{r setup, include=FALSE}
-library(fofpack)
+library(sdmpack)
 library(tidyverse)
 library(tidymodels)
 
 data("RF_abund")
 
-progress <- file.path(system.file(package = "fofpack"), "week_5_progress.Rdata")
-if(file.exists(progress)) {
-  load(progress, envir = rlang::global_env())
-}
+
 ```
 
 The following code loads the packages you will need for this assignment, and the dataset you will be using (and clears the workspace). You will be using a dataset on reef fishes from reefs around the world called `RF_abund`. Don't forget to always click 'Run Code' for each code box, which runs your code in RStudio, and allows you to access the results in later code boxes.
 
 ```{r do_setup, exercise=TRUE}
 rm(list = ls())
-library(fofpack)
+library(sdmpack)
 library(tidyverse)
 library(tidymodels)
 
@@ -140,11 +137,12 @@ ls()
 ```
 
 Copy and paste one of the above species names into [Fishbase](https://www.fishbase.se/search.php), using the scientific name section (look for **Genus + Species**), it looks like this:
-![](images/week_5_insertimage_fish.png)
+![](https://rdinnager.github.io/sdmpack/images/week_5_insertimage_fish.png)
 
 Have a look at some pictures and get to know your chosen species. You will model this species distribution across different temperatures.
 
-```{r q1}
+*question_1:*
+```{r question_1}
 
 question_text("What is the common name of your species? (Found under the scientific name on the species page).",
               answer_fn(~ incorrect("Thank you for your answer!")),
@@ -155,11 +153,12 @@ question_text("What is the common name of your species? (Found under the scienti
 
 Put the scientific name in a character object called `mysp`.
 
-```{r e1_2, exercise=TRUE}
+*exercise_1:*
+```{r exercise_1, exercise=TRUE}
 mysp <- "___"
 ```
 
-```{r e1_2-check}
+```{r exercise_1-check}
 ls()
 ```
 
@@ -171,24 +170,26 @@ First filter the `RF_abund` dataframe to just your chosen species (`mysp`). Call
 names(RF_abund)
 ```
 
-```{r e2, exercise=TRUE}
+*exercise_2-1:*
+```{r exercise_2-1, exercise=TRUE}
 mysp_dat <- RF_abund %>%
   filter(___ == mysp)
 ```
 
-```{r e2-check}
+```{r exercise_2-1-check}
 ls()
 ```
 
 Now plot `MeanTemp_CoralWatch` on the x axis, and `log_Abundance` on the y axis, using `ggplot2`
 
-```{r e2_2, exercise=TRUE}
+*exercise_2-2:*
+```{r exercise_2-2, exercise=TRUE}
 ggplot(mysp_dat, aes(x = ___, y = ___)) + 
   geom_point() +
   theme_minimal()
 ```
 
-```{r e2_2-check}
+```{r exercise_2-2-check}
 ls()
 ```
 
@@ -196,7 +197,8 @@ ls()
 
 Run a linear model to estimate how the species' abundance (`log_Abundance`) responds to mean temperature (`MeanTemp_CoralWatch`). Start by making a formula and assign it to an object called `form`. Then run the model using `tidymodels`, assigning the result to `mysp_mod`. The left hand side is the variable you want to predict (the response). The right hand side the variable you want to use to predict with (the predictor)
 
-```{r e3, exercise=TRUE}
+*exercise_3-1:*
+```{r exercise_3-1, exercise=TRUE}
 form <- ___ ~ ___
 
 mysp_mod <- linear_reg() %>%
@@ -206,21 +208,22 @@ mysp_mod <- linear_reg() %>%
 tidy(mysp_mod)
 ```
 
-```{r e3-check}
+```{r exercise_3-1-check}
 ls()
 ```
 
 Use the above model object to generate predictions for your species at each of the original data points. Assign this to an object called `mysp_preds`
 
-```{r e3_2, exercise=TRUE}
+*exercise_3-2:*
+```{r exercise_3-2, exercise=TRUE}
 mysp_preds <- 
 ```
 
-```{r e3_2-check}
+```{r exercise_3-2-check}
 ls()
 ```
 
-```{r e3_2-hint}
+```{r exercise_3-2-hint}
 predict(mysp_mod, mysp_dat)
 ```
 
@@ -239,16 +242,24 @@ ls()
 
 Use the `mysp_dat_pred` to plot the model predictions alongside the observed data. Replace the blank with the correct `ggplot2` code to plot the predictions.
 
-```{r e3_4, exercise=TRUE}
+*exercise_3-3:*
+```{r exercise_3-3, exercise=TRUE}
 ggplot(mysp_dat_preds, aes(MeanTemp_CoralWatch, log_Abundance)) +
-  ___ +
+  geom_path(aes(___ = ___)) +
   geom_point() +
   theme_minimal()
 ```
 
-```{r e3_4-check}
+```{r exercise_3-3-check}
 ls()
 ```
+
+<div id="exercise_3-3-hint">
+**Hint:** You want to plot the predictions on the `y` axis.
+If you can't remember what the column with the predictions in it are, go back to RStudio and use the environment pane to look at `mysp_dat_preds`. Or just type `mysp_dat_preds` in the console (or even in this code box) and run the code to get a printout of the data.frame. The prediction column should be there.
+
+</div>
+
 
 ## Just for fun
 
@@ -353,17 +364,18 @@ ls()
 
 Use the `pred_dat_2` dataframe to generate predictions from the model at each predictor grid point and then bind the prediction back to the `pred_dat_2` dataframe. Then use this to plot the predictions along with the data.
 
-```{r b4, exercise=TRUE}
+*exercise_b1:*
+```{r exercise_b1, exercise=TRUE}
 
 
 
 ```
 
-```{r b4-check}
+```{r exercise_b1-check}
 ls()
 ```
 
-<div id="b4-hint">
+<div id="exercise_b1-hint">
 **Hint:** After binding the predictions back to `pred_dat_2`, for the plot use:
 ```
 ggplot(pred_dat_2, aes(MeanTemp_CoralWatch, Depth_Site)) +
@@ -393,7 +405,7 @@ learnrhash::encoder_ui(ui_before = NULL)
 
 If you want to double-check the answers that the code above stores, paste it here and click 'Decode!'. 
 
-This assignment should have ?? exercises, so you should see ?? chunks of code, each prefixed with exercise_i: (where i is the exercise number).
+This assignment should have 6 exercises (not including bonus), so you should see 6 chunks of code if you have completed the assignment, each prefixed with exercise_i: (where i is the exercise number). There is also one question, so you should see one chunk of text prefixed with 'question_j' (where j is question number).
 
 ```{r context="server"}
 sdmpack::decoder_logic()
