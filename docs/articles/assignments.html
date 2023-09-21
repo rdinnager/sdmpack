@@ -95,12 +95,7 @@ following:</p>
 <span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"rdinnager/sdmpack"</span><span class="op">)</span></span></code></pre></div>
 <p>Note that if <code>devtools</code> has not been installed properly
 then <code><a href="https://devtools.r-lib.org/" class="external-link">library(devtools)</a></code> will fail with an error. If this is
-the case, try installing <code>devtools</code> again.
-<code>dependencies = TRUE</code> and <code>upgrade = TRUE</code> should
-force the installation or upgrading of any package dependencies of
-<code>sdmpack</code>, so you should not have to install dependencies
-manually. The output of the above command will depend on what package
-you have installed already.</p>
+the case, try installing <code>devtools</code> again.</p>
 <p>When you run the above code you might get a dialog box like this:
 <img src="images/source_question.png" alt="Source Question"> You will
 need to make a choice before installation will proceed. I recommend
@@ -116,6 +111,10 @@ from the old version. To get rid of this warning, you musr clear your
 workspace and then restart R. The above issue happens if the package was
 in use when R tried to reinstall it. It generally only happens on
 Windows.</p>
+<p>If installation from github fails for any reason you can try
+installing using the R-Universe instead by running this code:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">'sdmpack'</span>, repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'https://rdinnager.r-universe.dev'</span>, <span class="st">'https://cloud.r-project.org'</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>To test if <code>sdmpack</code> has been installed properly, run
 <code><a href="https://rdinnager.github.io/sdmpack/" class="external-link">library(sdmpack)</a></code>, and make sure you get no errors.</p>
 <p>Once <code>sdmpack</code> is installed, assignments should appear in
@@ -123,9 +122,9 @@ the ‘Tutorial’ pane of RStudio, where they will be prefixed by the week
 (e.g. Week 3: Visualising Tidy Data). If they do not appear, try
 restarting R by clicking ‘Session’, then ‘Restart R’ from the RStudio
 menu:</p>
-<div class="float">
-<img src="images/restart_r.png" alt="Restart R Screenshot"><div class="figcaption">Restart R Screenshot</div>
-</div>
+<p><img src="images/restart_r.png" alt="Restart R Screenshot"> If the
+assignment does not appear in the ‘Tutorial’ pane, or if you would
+prefer,</p>
 </div>
 <div class="section level2">
 <h2 id="doing-assignments">Doing Assignments<a class="anchor" aria-label="anchor" href="#doing-assignments"></a>
@@ -139,21 +138,29 @@ menu:</p>
 <p>Click on the ‘Start Tutorial’ button to render and load the
 assignment. If for some reason the assignment is still not showing up in
 the ‘Tutorial’ pane, even after restarting R, you can run the assignment
-by typing <code>learnr::run_tutorial("week_?", "sdmpack")</code> in the
-R console, replacing <code>?</code> with week number for the desired
-assignment
-(e.g. <code>learnr::run_tutorial("week_3", "sdmpack")</code>). It should
-look something like this:</p>
+by downloading the assignment from the course’s canvas website (I post
+all assignments there), where they will have ‘.Rmd’ as their file
+extension. You can open this file in RStudio and then click the ‘Run
+Document’ button. Once you have done that, it should look something like
+this:</p>
 <div class="float">
 <img src="images/tutorial_example.png" alt="Tutorial Screenshot"><div class="figcaption">Tutorial Screenshot</div>
 </div>
-<p>Go through the assignment, following the instructions. Code boxes
-with a ‘Submit Answer’ box are required to be completed for full marks.
-Note that the ‘Submit Answer’ button currently does not do anything
-other than run the code in the box.</p>
+<p>Go through the assignment, following the instructions. Answer any
+questions (which will be marked by italicized text of the form
+‘question_{number}’), run the code in code boxes and complete any
+exercise code boxes. Exercise code boxes that must be completed for full
+marks are marked with italicized text of the form ‘exercise_{number}’,
+and look like this:</p>
 <div class="float">
-<img src="images/submit_button.png" alt="Submit Button"><div class="figcaption">Submit Button</div>
+<img src="images/new_code_box.png" alt="Submit Button"><div class="figcaption">Submit Button</div>
 </div>
+<p>Clicking ‘Test Code’ will run the code in a local environment within
+the code tutorial. Clicking ‘Run Code’ will run the code locally but
+also send it to RStudio so you can access the object it creates in the
+environment browser, and also so you can build results across multiple
+code boxes. You must click either ‘Test Code’ or ‘Run Code’ in order for
+your answer to be recorded.</p>
 </div>
 </div>
 <div class="section level2">
@@ -187,6 +194,24 @@ Canvas paste the copied hash code into the assignment text box:</p>
 corrupt the hash code and I won’t be able to retrieve your answers. If
 you need to add any additional information please use the ‘comment’
 field.</p>
+<p>If you want to double-check the hash code has stored your answers
+correctly before submitting it on Canvas, each assignment now has a
+‘Decode’ section that looks like this:</p>
+<div class="float">
+<img src="images/Decode_1.png" alt="Decode_1"><div class="figcaption">Decode_1</div>
+</div>
+<p>Just paste the hash code into the box and click ‘Decode!’:</p>
+<div class="float">
+<img src="images/decode_2.png" alt="Decode_2"><div class="figcaption">Decode_2</div>
+</div>
+<p>In the Submission box it should show the answers you put in the
+exercise code boxes (and answers to any questions). If you did not fill
+out an exercise or forgot to test or run the code, then there will be no
+entry for that exercise. If there is any missing exercises go back to
+the tutorial code box and make sure you have completed it and clicked
+‘Test Code’ or ‘Run Code’. Then come back to the Submit section. Make
+sure you click ‘Generate’ again to regenerate a code with whatever new
+changes you made.</p>
 </div>
 <div class="section level2">
 <h2 id="saving-your-work">Saving Your Work<a class="anchor" aria-label="anchor" href="#saving-your-work"></a>
@@ -200,6 +225,8 @@ button in the code box:</p>
 <div class="float">
 <img src="images/startover_box.png" alt="Start Over in Box"><div class="figcaption">Start Over in Box</div>
 </div>
+<p>Again, if you click this, your previous answer will be lost, so be
+careful.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
     </nav></aside>

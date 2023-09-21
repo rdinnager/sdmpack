@@ -41,10 +41,6 @@ install_github("rdinnager/sdmpack")
 
 Note that if `devtools` has not been installed properly then `library(devtools)`
 will fail with an error. If this is the case, try installing `devtools` again.
-`dependencies = TRUE` and `upgrade = TRUE` should force the installation or
-upgrading of any package dependencies of `sdmpack`, so you should not have to
-install dependencies manually. The output of the above command will depend
-on what package you have installed already.
 
 When you run the above code you might get a dialog box like this:
 ![Source Question](images/source_question.png)
@@ -56,12 +52,19 @@ During installation you might get a warning like this:
 
 In most cases this can be ignored because the package was restored from the old version. To get rid of this warning, you musr clear your workspace and then restart R. The above issue happens if the package was in use when R tried to reinstall it. It generally only happens on Windows.
 
+If installation from github fails for any reason you can try installing using the R-Universe instead by running this code:
+
+```{r install_univers, eval=FALSE}
+install.packages('sdmpack', repos = c('https://rdinnager.r-universe.dev', 'https://cloud.r-project.org'))
+```
+
 To test if `sdmpack` has been installed properly, run `library(sdmpack)`, and
 make sure you get no errors. 
 
 Once `sdmpack` is installed, assignments should appear in the 'Tutorial' pane of RStudio, where they will be prefixed by the week (e.g. Week 3: Visualising Tidy Data). If they do not appear, try restarting R by clicking 'Session', then 'Restart R' from the RStudio menu:
 
 ![Restart R Screenshot](images/restart_r.png)
+If the assignment does not appear in the 'Tutorial' pane, or if you would prefer,
 
 ## Doing Assignments
 
@@ -72,19 +75,15 @@ Once `sdmpack` is installed, assignments should appear in the 'Tutorial' pane of
 
 Click on the 'Start Tutorial' button to render and load the assignment. If for
 some reason the assignment is still not showing up in the 'Tutorial' pane, even
-after restarting R, you can run the assignment by typing 
-`learnr::run_tutorial("week_?", "sdmpack")` in the R console, replacing `?` with
-week number for the desired assignment (e.g. `learnr::run_tutorial("week_3", "sdmpack")`). 
-It should look something like this:
+after restarting R, you can run the assignment by downloading the assignment from the course's canvas website (I post all assignments there), where they will have '.Rmd' as their file extension. You can open this file in RStudio and then click the 'Run Document' button. Once you have done that, it should look something like this:
 
 ![Tutorial Screenshot](images/tutorial_example.png)
 
-Go through the assignment, following the instructions. Code boxes with
-a 'Submit Answer' box are required to be completed for full marks.
-Note that the 'Submit Answer' button currently does not do anything other
-than run the code in the box. 
+Go through the assignment, following the instructions. Answer any questions (which will be marked by italicized text of the form 'question_{number}'), run the code in code boxes and complete any exercise code boxes. Exercise code boxes that must be completed for full marks are marked with italicized text of the form 'exercise_{number}', and look like this: 
 
-![Submit Button](images/submit_button.png)
+![Submit Button](images/new_code_box.png)
+
+Clicking 'Test Code' will run the code in a local environment within the code tutorial. Clicking 'Run Code' will run the code locally but also send it to RStudio so you can access the object it creates in the environment browser, and also so you can build results across multiple code boxes. You must click either 'Test Code' or 'Run Code' in order for your answer to be recorded.
 
 ## Submitting Your Work
 
@@ -112,6 +111,15 @@ Please do not add any additional text in the text box or it will corrupt the
 hash code and I won't be able to retrieve your answers. If you need to add any
 additional information please use the 'comment' field.
 
+If you want to double-check the hash code has stored your answers correctly before submitting it on Canvas, each assignment now has a 'Decode' section that looks like this:
+
+![Decode_1](images/decode_1.png)
+
+Just paste the hash code into the box and click 'Decode!':
+
+![Decode_2](images/decode_2.png)
+
+In the Submission box it should show the answers you put in the exercise code boxes (and answers to any questions). If you did not fill out an exercise or forgot to test or run the code, then there will be no entry for that exercise. If there is any missing exercises go back to the tutorial code box and make sure you have completed it and clicked 'Test Code' or 'Run Code'. Then come back to the Submit section. Make sure you click 'Generate' again to regenerate a code with whatever new changes you made.
 
 ## Saving Your Work
 
@@ -122,3 +130,5 @@ be reset and you will lose all of your work! Individual exercises can also be re
 using the 'Start Over' button in the code box:
 
 ![Start Over in Box](images/startover_box.png)
+
+Again, if you click this, your previous answer will be lost, so be careful.
