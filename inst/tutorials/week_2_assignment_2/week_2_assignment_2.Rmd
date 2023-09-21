@@ -1,0 +1,349 @@
+---
+title: "Week 2 Assignment"
+output: 
+  learnr::tutorial:
+    progressive: false
+    language:
+      en:
+        button:
+          runcode: Test Code
+          submitanswer: Run Code
+          questionsubmit: Submit Answer
+          questiontryagain: Change my answer
+runtime: shiny_prerendered
+description: SDM Course Week 2 Assignment
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(sdmpack)
+library(tutorial.helpers)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    sdmpack::send_env_to_RStudio(envir_prep)
+    
+    sdmpack::set_env(envir_result)
+    
+    # try(save.image(file.path(system.file(package = "fofpack"), "week_5_progress.Rdata"),
+    #            safe = FALSE),
+    #     silent = TRUE)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker,
+                 exercise.timelimit = 300)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Week 2 Assignment
+
+## Data Visualization
+
+### Setup
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(palmerpenguins)
+
+data("penguins")
+```
+
+Please complete the assignment by making sure you follow the instructions in each of the Exercises (there are three of them, and should be sections titled 'Exercise 1', Exercise 2', and 'Exercise 3'). Make sure you modify the code in any code boxes that you are asked to modify. If the code remains unchanged you will not get marks for that exercise. Be careful with the 'Start Over' button as this will replace any code you wrote with what was originally in the code box.
+
+The following code loads the packages you will need for this assignment, and the dataset you will be using (and clears the workspace). Don't forget to always click 'Run Code' for each code box, which runs your code in RStudio, and allows you to access the results in later code boxes.
+
+```{r do_setup, exercise=TRUE}
+rm(list = ls())
+library(tidyverse)
+library(palmerpenguins)
+
+data("penguins")
+
+penguins
+```
+
+```{r do_setup-check}
+ls()
+```
+
+The `palmerpenguins` is a dataset containing various measurements from individuals of three different penguin species. The first thing we should generally do when working with a new dataset is to try and visualize it, if only to get a better sense of it. Let's make our first plot with `ggplot2`, the main visualization package in the `tidyverse`.
+
+### ggplot2
+
+Add a theme to a `ggplot`.
+
+This is what `ggplot2` code for making a basic plot looks like:
+
+```{r plot1, exercise=TRUE}
+ggplot(penguins, aes(x = bill_length_mm, y = body_mass_g)) +
+  geom_point()
+```
+
+```{r plot1-check}
+ls()
+```
+
+`ggplot2` plots are built up in layers using the `+` operator. Each type of layer is a different function which are added together with `+` to built a full plot. The `ggplot()` function initializes the plot. Try deleting the second layer in the code box to see what you get.
+
+```{r q1}
+question_radio("What do you think about the grey background that is the default in {ggplot}?",
+              answer("I love it!", correct = TRUE, message = "Beauty is in the eye of the beholder, isn't it?"),
+              answer("It's hideous.", correct = TRUE, message = "You are correct."),
+              answer("It doesn't matter because I can change it if I want to.", correct = TRUE,
+                     message = "This is actually the really reaallly correct answer"),
+              allow_retry = TRUE)
+
+```
+
+### Exercise 1
+
+Using the code box below, change the overall look of the plot by adding a theme. Use any theme you want. You can try out a bunch and find the one you like the best if you want.
+
+```{r plot1_1, exercise=TRUE}
+ggplot(penguins, aes(x = bill_length_mm, y = body_mass_g)) +
+  geom_point()
+```
+
+```{r plot1_1-check}
+ls()
+```
+
+<div id="plot1_1-hint">
+**Hint:** Try typing `theme_` and the autocomplete should offer suggestions.
+</div>
+
+### Add some more complexity
+
+In `ggplot2` we can 'map' a 'variable' to an 'aesthetic' to distinguish different parts of the plot. Now, that is a lot of terminology in one sentence you may not have heard before.
+
+See the [Week 2 Lecture Slides](https://docs.google.com/presentation/d/1yuUylI9WMYkMfbrUXFOsR9G3vpfLe5QOLakulTOsNGc/edit?usp=sharing) for definitions of this terminology.
+
+Let's change the color of the points to reflect the sex of the penguins.
+
+```{r plot2, exercise=TRUE}
+ggplot(penguins, aes(bill_length_mm, body_mass_g)) +
+  geom_point(aes(color = sex)) +
+  theme_minimal()
+```
+
+```{r plot2-check}
+ls()
+```
+
+Overall, there isn't a clear separation by sex, but maybe things will look clearer if we take into account that we have three different species here. We can separate out the species by using panels (called 'facets' in `ggplot2`). This is easy to do by adding another layer to the plot.
+
+```{r plot3, exercise=TRUE}
+ggplot(penguins, aes(bill_length_mm, body_mass_g)) +
+  geom_point(aes(color = sex)) +
+  facet_grid(cols = vars(species)) +
+  theme_minimal()
+```
+
+```{r plot3-check}
+ls()
+```
+
+### Using a GUI: `esquisse`
+
+There is an overwhelming number of different ways of plotting data in `gglot2` and sometimes it can be tedious to tweak every aspect of a plot by painstakingly changing the code. One way to help with this is to use the `ggplot2` graphical user interface provided by the package `esquisse` (meaning 'sketch' in french). This allows you to manipulate the plot with a GUI but then generate the code needed to make the plot, which gives the benefit of reproducibility.
+
+```{r plot4, exercise=TRUE}
+library(esquisse)
+esquisser()
+```
+
+```{r plot4-check}
+ls()
+```
+
+That actually won't work! That is because `esquisse` is what's called a shiny app, and this tutorial is already a shiny app. A shiny app can't run a shiny app. But we can run our code in 'RStudio'. Paste the code above into the console to try it out! 
+
+### Exercise 2
+
+Either use `esquisse` or simply modify the code below to create a plot using three or four variables. Don't use the exact same variables as already there. Change at least one of the variables to a new one, and change at least one of the aesthetic mappings (e.g. map sex to facte instead of colour, etc.)
+
+```{r plot5, exercise=TRUE}
+ggplot(penguins, aes(bill_length_mm, body_mass_g)) +
+  geom_point(aes(color = sex)) +
+  facet_grid(cols = vars(species)) +
+  theme_minimal()
+```
+
+```{r plot5-check}
+ls()
+```
+
+<div id="plot5-hint">
+**Hint:** You can use the 'environment browser' in RStudio to look at the `penguins` dataset and see what other variables are available for use in the plot.
+</div>
+
+## Data Wrangling
+
+But how did the neat and tidy `penguins` data set come to be. Well, it was 'wrangled' by a data scienctist from a messy raw data set. Data wrangling can be a major part of a data scientist's (or any scientist's) job. We will cover some basic data wrangling using `tidyverse` packages.
+
+Let's take a look at the raw data (and load a few more useful packages).
+
+```{r wrangle_penguin1, exercise=TRUE}
+library(lubridate)
+library(janitor)
+
+penguins_raw
+
+```
+
+```{r wrangle_penguin1-check}
+ls()
+```
+
+The most important concept in `tidyverse` data wrangling is the idea of a data 'verb'. You use 'verbs' to perform actions in a stepwise fashion on data.
+
+See [Week 2 Lecture Slides](https://docs.google.com/presentation/d/1yuUylI9WMYkMfbrUXFOsR9G3vpfLe5QOLakulTOsNGc/edit?usp=sharing) for more info.
+
+The complete code used to get from `penguins_raw` to `penguins` is in the code box below. You don't need to know or understand all of these steps but it should give you and idea of the power of `tidyverse` verbs and the pipe for concisely wrangling data. Try running the code an comparing `penguins_df` to `penguins_raw`. They should be the same!
+
+```{r complete_penguin, exercise=TRUE}
+library(lubridate)
+library(janitor)
+
+penguins_df <- penguins_raw |>
+  clean_names() |>
+  mutate(species_short = word(species, 1)) |>
+  mutate(sex = tolower(sex)) |>
+  mutate(year = as.integer(lubridate::year(date_egg))) |>
+  mutate(across(where(is.character), as.factor)) |>
+  mutate(flipper_length_mm = as.integer(flipper_length_mm)) |>
+  mutate(body_mass_g = as.integer(body_mass_g)) |>
+  rename(bill_length_mm = culmen_length_mm,
+         bill_depth_mm = culmen_depth_mm) |>
+  select(species_short,
+         island,
+         bill_length_mm,
+         bill_depth_mm,
+         flipper_length_mm,
+         body_mass_g,
+         sex,
+         year) |>
+  rename(species = species_short) |>
+  as.data.frame()
+
+```
+
+```{r complete_penguin-check}
+ls()
+```
+
+### Summarizing Data
+
+A common task of data wrangling is summarizing. Summarizing means to take a dataset and make it smaller by using summary statistics over groups. Summary statistics are things like the mean, the median, the variance, the range, etc. You will often hear about, for example, 'median household income' as an indicator of the economic advantage of different areas or groups of people. This is a summary over a grouping variable. Let's try creating some summaries of our penguin data.
+
+```{r summary_penguin, exercise=TRUE}
+
+penguins_summ <- penguins |>
+  group_by(species, sex) |> ## sets variables as 'grouping' variables for later verbs
+  summarise(mean_body_mass = mean(body_mass_g),
+            var_body_mass = var(body_mass_g))
+
+penguins_summ
+
+```
+
+```{r summary_penguin-check}
+ls()
+```
+
+### Exercise 3
+
+In the code box below, modify the code to summarise over a different set of grouping variables (change at least one of species or sex). Also, summarize a different variable or set of variables (change `body_mass_g` to something else). There is a bonus mark if you can correctly use a different summary function besides `mean()` or `var()`.
+
+```{r summary_penguin2, exercise=TRUE}
+
+penguins_summ <- penguins |>
+  group_by(species, sex) |> ## sets variables as 'grouping' variables for later verbs
+  summarise(mean_body_mass = mean(body_mass_g),
+            var_body_mass = var(body_mass_g))
+
+penguins_summ
+
+```
+
+```{r summary_penguin2-check}
+ls()
+```
+
+That's it for today! Please go to the 'Submit' section and generate your hash code.
+
+## Packages used
+
+To install all the packages used today, which you will need for this weeks assignment you can run following to check which are already installed (any packages missing will throw a warning)
+
+```{r check_install, exercise=TRUE}
+require(tidyverse)
+require(palmerpenguins)
+require(esquisse)
+require(lubridate) # not required for assignment
+require(janitor) # not required for assignment
+```
+
+```{r check_install-check}
+ls()
+```
+
+Install any one you missed by copying from the code below and pasting it into the RStudio console (it won't work if you run it inside the tutorial).
+
+```{r install, exercise=TRUE}
+install.packages(tidyverse)
+install.packages(palmerpenguins)
+install.packages(esquisse)
+install.packages(lubridate)
+install.packages(janitor)
+```
+
+```{r install-check}
+ls()
+```
+
+## Submit
+
+
+Once you have completed the assignment to your satisfaction, please click the 'generate' button below. This will create a text code that you can copy and paste into the assignment text submission form on canvas, and which I can use to regenerate your answers. Please make sure you copy the entire code. The easiest way is to click the copy button in at the top right. This will copy the entire code to the clipboard.  
+
+
+```{r download-answers, child = system.file("child_documents/download_answers.Rmd", package = "tutorial.helpers")}
+```

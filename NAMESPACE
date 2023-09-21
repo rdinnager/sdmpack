@@ -2,6 +2,8 @@
 
 export(convert_hash_code)
 export(convert_learnr_to_static)
+export(decoder_logic)
+export(decoder_ui)
 export(fofpack_up_to_date)
 export(make_data)
 export(send_env_to_RStudio)
