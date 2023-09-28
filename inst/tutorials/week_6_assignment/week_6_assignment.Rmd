@@ -1,0 +1,267 @@
+---
+title: "SDM Course: Week 6 Assignment"
+output: 
+  learnr::tutorial:
+    progressive: false
+    language:
+      en:
+        button:
+          runcode: Test Code
+          submitanswer: Run Code
+          questionsubmit: Submit Answer
+          questiontryagain: Change my answer
+runtime: shiny_prerendered
+description: SDM Course Week 5 Assignment
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(sdmpack)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    # fofpack::send_env_to_RStudio(envir_prep)
+    
+    rstudioapi::sendToConsole(user_code, focus = TRUE)
+    
+    sdmpack::set_env(envir_result)
+    
+    # try(save.image(file.path(system.file(package = "fofpack"), "week_5_progress.Rdata"),
+    #            safe = FALSE),
+    #     silent = TRUE)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker,
+                 exercise.timelimit = 300)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r setup, include=FALSE}
+library(sdmpack)
+library(tidyverse)
+library(tidymodels)
+library(stars)
+
+data("IRC")
+data("bioclim_fl")
+data("bioclim_vars")
+
+tickseed <- IRC |>
+  filter(ScientificName == "Coreopsis leavenworthii") %>%
+  mutate(Occurrence = as.factor(Occurrence))
+
+tickseed_env <- st_extract(bioclim_fl,
+                           tickseed |>
+                             select(long, lat) |>
+                             as.matrix()) |>
+  scale()
+
+colnames(tickseed_env) <- paste0("bioclimate_", 
+                                 1:ncol(tickseed_env))
+
+tickseed <- tickseed |>
+  bind_cols(as.data.frame(tickseed_env)) |>
+  select(Occurrence, starts_with("bioclimate_")) |>
+  drop_na()
+
+
+```
+
+# SDM Course Week 6 Assignmemt
+
+## Setup
+
+```{r RF2, exercise=TRUE}
+
+library(sdmpack)
+library(tidyverse)
+library(tidymodels)
+
+data("IRC")
+data("bioclim_fl")
+data("bioclim_vars")
+
+```
+
+```{r RF2-check}
+ls()
+```
+
+## Cross Validation
+
+### Check out a Species: Tickseed
+
+You should already have a `data.frame` in your environment called `tickseed`, which contains data on the presence or absence of tickseed in parks across Southern Florida. Just to make sure, run this code to print it out.
+
+```{r RF22, exercise=TRUE}
+
+tickseed
+
+```
+
+```{r RF22-check}
+ls()
+```
+
+## *V*-fold Cross Validation
+
+- A common way to create randomized training / test splits is *V*-fold cross validation
+- This randomly split the data into *V* subsets
+- The, *V* training / test splits are created by using each subset as the test set with the remainder combined as the training set
+
+### Check out `vfold_cv()` function 
+
+Read the documentation for the `vfold_cv()` function by running `?vfold_cv`. The documentation for R functions is extensive and very helpful. Try to get used to using it frequently. Anytime you are unsure how to answer a question, try reading the documentation for the functions involved. There is also always Google.
+
+```{r model111, exercise=TRUE}
+?vfold_cv
+```
+
+```{r model111-check}
+ls()
+```
+
+Please answer the following questions about `vfold_cv()`:
+
+*question_1:*
+```{r question_1}
+
+question_numeric("How many arguments does `vfold_cv()` have, not including `...`?",
+                 answer(6, correct = TRUE),
+                 incorrect = "Incorrect. The correct anwser is 6, the argument being `data`, `v`, `repeats`, `strata`, `breaks`, and `pool`.")
+
+```
+
+*question_2:*
+```{r question_2}
+
+question_radio("If you ran `vfold_cv()` with `v = 10`, and `repeats = 2`, how many total splits of the data would it produce?",
+               answer(10, correct = FALSE),
+               answer(20, correct = TRUE),
+               answer(30, correct = FALSE),
+               answer("> 30", correct = FALSE),
+               incorrect = "Incorrect. The correct anwser is 20. The `repeats` argument says how many times to repeat the cross validation splits, so with `v = 10` we get 10 * 2 = 20 splits.")
+
+```
+
+### Create Cross Validation 'Folds'
+
+Use what you've learned from the documentation to fill in the blank. Add an argument so that the function produces *5* cross-validation folds.
+
+*exercise_1*
+```{r model11, exercise=TRUE}
+tickseed_folds <- vfold_cv(tickseed, ___, strata = Occurrence)
+tickseed_folds
+```
+
+```{r model11-check}
+ls()
+```
+
+## Run a model on it
+
+```{r model10, exercise=TRUE}
+mod <-
+  boost_tree(trees = tune(), learn_rate = tune()) %>%
+  set_engine('xgboost') %>%
+  set_mode('classification')
+
+mod
+
+```
+
+```{r model10-check}
+ls()
+```
+
+## tidymodels automates tuning
+
+```{r model12, exercise=TRUE}
+result <- mod %>%
+  tune_grid(Occurrence ~ .,
+            tickseed_folds,
+            grid = 16,
+            metrics = metric_set(roc_auc),
+            control = control_grid(verbose = TRUE))
+
+result
+```
+
+```{r model12-check}
+ls()
+```
+
+
+## Get best model
+
+```{r model13, exercise=TRUE}
+result %>%
+  show_best()
+```
+
+```{r model13-check}
+ls()
+```
+
+## Collect metrics
+
+```{r model_plot, exercise=TRUE}
+result %>%
+  collect_metrics() 
+```
+
+```{r model_plot-check}
+ls()
+```
+
+### Decode
+
+If you want to double-check the answers that the code above stores, paste it here and click 'Decode!'. 
+
+This assignment should have 6 exercises (not including bonus), so you should see 6 chunks of code if you have completed the assignment, each prefixed with exercise_i: (where i is the exercise number). There is also one question, so you should see one chunk of text prefixed with 'question_j' (where j is question number).
+
+```{r context="server"}
+sdmpack::decoder_logic()
+```
+
+```{r decode, echo=FALSE}
+sdmpack::decoder_ui()
+```
+
