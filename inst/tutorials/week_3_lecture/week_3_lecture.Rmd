@@ -102,7 +102,7 @@ Russell Dinnage
 * Data feeds into Models
 * Models inform Data processing steps
 
-![](images/week_5_lecture_insertimage_1.png)
+![](https://rdinnager.github.io/sdmpack/images/week_5_lecture_insertimage_1.png)
 
 
 ## Data Science Steps
@@ -188,7 +188,7 @@ ls()
 - Thalassoma pavo: [Ornate Wrasse](https://www.fishbase.se/summary/Thalassoma-pavo.html)
 
 ```{r, out.width = "300px"}
-knitr::include_graphics("images/week_5_lecture_insertimage_2.png")
+knitr::include_graphics("https://rdinnager.github.io/sdmpack/images/week_5_lecture_insertimage_2.png")
 ```
 
 ```{r RF2, exercise=TRUE}
