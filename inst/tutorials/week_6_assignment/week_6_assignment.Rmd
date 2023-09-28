@@ -48,12 +48,18 @@ library(learnr)
 library(sdmpack)
 
 custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  
+  
   # this is a code check
   if(stage == "check") {
     
     # fofpack::send_env_to_RStudio(envir_prep)
     
-    rstudioapi::sendToConsole(user_code, focus = TRUE)
+    
+      rstudioapi::sendToConsole(user_code, focus = TRUE)
+    
+      
+    
     
     sdmpack::set_env(envir_result)
     
@@ -108,11 +114,20 @@ tickseed <- tickseed |>
 
 ## Setup
 
+For this assignment you will need the R package `xgboost`. If it is not already installed (which you can tell by running the code below and seeing if it works), please close this tutorial and install it in RStudio with the following code:
+
+```r
+install.package("xgboost")
+```
+
+Please run the code in this box to setup the environment for the rest of the assignment.
+
 ```{r RF2, exercise=TRUE}
 
 library(sdmpack)
 library(tidyverse)
 library(tidymodels)
+require("xgboost")
 
 data("IRC")
 data("bioclim_fl")
@@ -186,16 +201,18 @@ question_radio("If you ran `vfold_cv()` with `v = 10`, and `repeats = 2`, how ma
 Use what you've learned from the documentation to fill in the blank. Add an argument so that the function produces *5* cross-validation folds.
 
 *exercise_1*
-```{r model11, exercise=TRUE}
+```{r exercise_1, exercise=TRUE}
 tickseed_folds <- vfold_cv(tickseed, ___, strata = Occurrence)
 tickseed_folds
 ```
 
-```{r model11-check}
+```{r exercise_1-check}
 ls()
 ```
 
-## Run a model on it
+## Run a model with tuning
+
+This is how you setup a model when you want to tune hyper-parameters. Instead of passing a fixed value in an argument, you flag the argument using the `tune()` function. Run the following to see what that looks like:
 
 ```{r model10, exercise=TRUE}
 mod <-
@@ -211,9 +228,65 @@ mod
 ls()
 ```
 
-## tidymodels automates tuning
+You can find out what hyper-parameters can be tuned for a particular model using the `tunable()` function. Try it out below:
 
-```{r model12, exercise=TRUE}
+```{r model101, exercise=TRUE}
+tunable(boost_tree())
+```
+
+```{r model101-check}
+ls()
+```
+
+*question_3:*
+```{r question_3}
+
+question_text("Please name one tunable hyper-parameter for `boost_tree()` models:",
+              answer("tree_depth", correct = TRUE),
+              answer("trees", correct = TRUE),
+              answer("learn_rate", correct = TRUE),
+              answer("mtry", correct = TRUE),
+              answer("min_n", correct = TRUE),
+              answer("loss_reduction", correct = TRUE),
+              answer("sample_size", correct = TRUE),
+              answer("stop_iter", correct = TRUE),
+              incorrect = "Incorrect. The correct anwser is one of: `tree_depth`, `trees`, `learn_rate`, `mtry`, `min_n`, `loss_reduction`, `sample_size`, or `stop_iter`")
+
+```
+
+You can read about what each of those hyper-parameters means by reading the documentation of `boost_tree()`.
+
+```{r model1011, exercise=TRUE}
+?boost_tree
+```
+
+```{r model1011-check}
+ls()
+```
+
+Now to set up your own model. Please choose any two tunable hyper-parameters, and set up a `boost_tree()` model by filling in the blanks. At least one should be different from the example I gave you above.
+
+*exercise_2*
+```{r exercise_2, exercise=TRUE}
+mod <-
+  boost_tree(___, ___)) %>%
+  set_engine('xgboost') %>%
+  set_mode('classification')
+
+mod
+
+```
+
+```{r exercise_2-check}
+ls()
+```
+
+## Automatic tuning with CV folds
+
+Though this is an exercise, you don't actually have to change or write any code, but you do have to run it to get full marks. This might take awhile, and unfortunately you cannot see the progress inside the tutorial. Feel free to switch to another window and do something else while you are waiting. Once you have run this code you technically have finished the assignment but if you want to see the results you can stick around and run the next few code blocks.
+
+*exercise_3*
+```{r exercise_3, exercise=TRUE}
 result <- mod %>%
   tune_grid(Occurrence ~ .,
             tickseed_folds,
@@ -229,7 +302,7 @@ ls()
 ```
 
 
-## Get best model
+### Have a look at the best model
 
 ```{r model13, exercise=TRUE}
 result %>%
@@ -240,7 +313,7 @@ result %>%
 ls()
 ```
 
-## Collect metrics
+### Collect metrics
 
 ```{r model_plot, exercise=TRUE}
 result %>%
@@ -249,6 +322,19 @@ result %>%
 
 ```{r model_plot-check}
 ls()
+```
+
+## Submit
+
+```{r context="server"}
+learnrhash::encoder_logic()
+```
+
+Once you have completed the assignment to your satisfaction, please click the 'generate' button below. This will create a text code that you can copy and paste into the assignment text submission form on canvas, and which I can use to regenerate your answers. Please make sure you copy the entire code. The easiest way is to click the copy button in at the top right. This will copy the entire code to the clipboard.  
+
+
+```{r encode, echo=FALSE}
+learnrhash::encoder_ui(ui_before = NULL)
 ```
 
 ### Decode
