@@ -1,0 +1,234 @@
+---
+title: "SDM Course Week 6 Lecture"
+output: 
+  ioslides_presentation:
+    widescreen: true
+runtime: shiny_prerendered
+description: SDM Course Week 6 Lecture
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(sdmpack)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    #sdmpack::send_env_to_RStudio(envir_prep)
+    
+    rstudioapi::sendToConsole(user_code, focus = TRUE)
+    
+    sdmpack::set_env(envir_result)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r setup1, include=FALSE}
+library(sdmpack)
+library(tidyverse)
+library(tidymodels)
+
+data("IRC")
+
+
+```
+
+## SDM Course Week 6
+
+### Pine Rocklands Cross Validation
+
+```{r RF2, exercise=TRUE}
+
+library(sdmpack)
+library(tidyverse)
+library(tidymodels)
+library(stars)
+
+data("IRC")
+data("bioclim_fl")
+data("bioclim_vars")
+
+```
+
+```{r RF2-check}
+ls()
+```
+
+## Data Summary
+
+```{r specs, exercise=TRUE}
+n_distinct(IRC$area_name)
+n_distinct(IRC$ScientificName)
+```
+
+```{r specs-check}
+ls()
+```
+
+## Species Summary
+
+```{r specs2, exercise=TRUE}
+IRC_summ <- IRC %>%
+  filter(Occurrence == "Present") %>%
+  group_by(ScientificName) %>%
+  summarise(num_areas = n_distinct(area_name)) %>%
+  arrange(desc(num_areas)) %>%
+  mutate(spec_num = 1:n())
+
+ggplot(IRC_summ, aes(spec_num, num_areas)) +
+  geom_col() +
+  theme_minimal()
+
+```
+
+```{r specs2-check}
+ls()
+```
+
+## Cross Validation
+
+- Previously we talked about model 'validation', which is accomplished by testing the model on a held-out 'test' set of data
+- This is useful to see how well the model does on unseen data, but it is vulnerable to random selection of the test set, and it is not suitable for 'tuning' hyper-parameters
+- This is because tuning hyper-parameters so that the model better predicts a single test set creates a similar 'over-fitting' problem that we see when fitting model 'parameters'
+- The solution is use many randomly generated training and test data sets and combine results.
+
+## Check out a Species: Tickseed
+
+```{r RF22, exercise=TRUE}
+
+tickseed <- IRC |>
+  filter(ScientificName == "Coreopsis leavenworthii") %>%
+  mutate(Occurrence = as.factor(Occurrence))
+
+tickseed_env <- st_extract(bioclim_fl,
+                           tickseed |>
+                             select(long, lat) |>
+                             as.matrix()) |>
+  scale()
+
+colnames(tickseed_env) <- paste0("bioclimate_", 
+                                 1:ncol(tickseed_env))
+
+tickseed <- tickseed |>
+  bind_cols(as.data.frame(tickseed_env)) |>
+  select(Occurrence, starts_with("bioclimate_")) |>
+  drop_na()
+
+tickseed
+
+```
+
+```{r RF22-check}
+ls()
+```
+
+## *V*-fold Cross Validation
+
+- A common way to create randomized training / test splits is *V*-fold cross validation
+- This randomly split the data into *V* subsets
+- The, *V* training / test splits are created by using each subset as the test set with the remainder combined as the training set
+
+## Create Cross Validation 'Folds'
+
+```{r model11, exercise=TRUE}
+tickseed_folds <- vfold_cv(tickseed, v = 5, strata = Occurrence)
+tickseed_folds
+```
+
+```{r model11-check}
+ls()
+```
+
+## Run a model on it
+
+```{r model10, exercise=TRUE}
+mod <-
+  boost_tree(trees = tune(), learn_rate = tune()) %>%
+  set_engine('xgboost') %>%
+  set_mode('classification')
+
+mod
+
+```
+
+```{r model10-check}
+ls()
+```
+
+## tidymodels automates tuning
+
+```{r model12, exercise=TRUE}
+result <- mod %>%
+  tune_grid(Occurrence ~ .,
+            tickseed_folds,
+            grid = 16,
+            metrics = metric_set(roc_auc),
+            control = control_grid(verbose = TRUE))
+
+result
+```
+
+```{r model12-check}
+ls()
+```
+
+
+## Get best model
+
+```{r model13, exercise=TRUE}
+result %>%
+  show_best()
+```
+
+```{r model13-check}
+ls()
+```
+
+## Collect metrics
+
+```{r model_plot, exercise=TRUE}
+result %>%
+  collect_metrics() 
+```
+
+```{r model_plot-check}
+ls()
+```
