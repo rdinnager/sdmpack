@@ -97,14 +97,14 @@ fish_dat <- RF_abund |>
 
 - Niches are often visualized or conceptualized as hump-shaped distributions along an environmental variable
 
-![](images/A+single+niche+axis+e.g.,+pH,+temperature,+or+soil+moisture.jpg)
+![](https://rdinnager.github.io/sdmpack/images/A+single+niche+axis+e.g.,+pH,+temperature,+or+soil+moisture.jpg)
 
 ## Ecological Niche Theory
 
 - Compare that with the model predictions I made in last lecture:
 
 
-![](images/2022-09-23 15_09_30-Week 5 Lecture Introduction to Species Distribution Modelling (SDM).pdf - Work -.png)
+![](https://rdinnager.github.io/sdmpack/images/2022-09-23 15_09_30-Week 5 Lecture Introduction to Species Distribution Modelling (SDM).pdf - Work -.png)
 
 
 ## Generalise to many dimensions 
@@ -112,7 +112,7 @@ fish_dat <- RF_abund |>
 - Environmental 'hypervolume'
 
 
-![3D Hypervolume](images/pnas_movies1.webp)
+![3D Hypervolume](https://rdinnager.github.io/sdmpack/images/pnas_movies1.webp)
 
 
 ## Review 

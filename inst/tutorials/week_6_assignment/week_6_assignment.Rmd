@@ -49,17 +49,26 @@ library(sdmpack)
 
 custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
   
+  if(stage == "code_check" & label == "exercise_3") {
+    
+    
+    
+    rstudioapi::sendToConsole(check_code, focus = TRUE)
+    
+    return(list(message = "Because this is long running code, it has been sent to RStudio to run.", correct = FALSE, type = "success", location = "append"))
+  }
   
   # this is a code check
   if(stage == "check") {
     
     # fofpack::send_env_to_RStudio(envir_prep)
     
-    
-      rstudioapi::sendToConsole(user_code, focus = TRUE)
-    
-      
-    
+    # if(label != "exercise_3") {
+    # 
+    rstudioapi::sendToConsole(user_code, focus = TRUE)
+    # 
+    #   
+    # } 
     
     sdmpack::set_env(envir_result)
     
@@ -283,7 +292,7 @@ ls()
 
 ## Automatic tuning with CV folds
 
-Though this is an exercise, you don't actually have to change or write any code, but you do have to run it to get full marks. This might take awhile, and unfortunately you cannot see the progress inside the tutorial. Feel free to switch to another window and do something else while you are waiting. Once you have run this code you technically have finished the assignment but if you want to see the results you can stick around and run the next few code blocks.
+Though this is an exercise, you don't actually have to change or write any code, but you do have to run it to get full marks. This might take awhile, so this exercise gets sent directly to RStudio to run. Switch to your RStudio window to see progress.
 
 *exercise_3*
 ```{r exercise_3, exercise=TRUE}
@@ -297,8 +306,8 @@ result <- mod %>%
 result
 ```
 
-```{r model12-check}
-ls()
+```{r exercise_3-code-check}
+rstudioapi::sendToConsole(check_env$check_code, focus = TRUE)
 ```
 
 
