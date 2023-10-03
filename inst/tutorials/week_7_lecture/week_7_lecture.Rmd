@@ -1,0 +1,628 @@
+---
+title: "FIU SDM Course: Week 7 Lecture"
+output: 
+  ioslides_presentation:
+    widescreen: true
+runtime: shiny_prerendered
+description: SDM Course Week 7 Lecture
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(sdmpack)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    #fofpack::send_env_to_RStudio(envir_prep)
+    
+    rstudioapi::sendToConsole(user_code, focus = TRUE)
+    
+    fofpack::set_env(envir_result)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker,
+                 exercise.timelimit = 1200)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r setup, include=FALSE}
+library(sdmpack)
+library(tidyverse)
+library(tidymodels)
+
+options(datatable.alloccol = 1024,
+        datatable.verbose = FALSE)
+
+data("RF_abund")
+fish_dat <- RF_abund %>%
+  filter(SpeciesName == "Thalassoma pavo") %>%
+  mutate(Presence = as.factor(Presence))
+
+```
+
+## Model Tuning
+
+- Going back to our reef fish example, we saw the we had some major overfitting issues with our boosted tree model.
+- In this class we will see how to tune hyper-parameters of model to improve performance.
+
+---
+
+```{r RF2, exercise=TRUE}
+library(fofpack)
+library(tidyverse)
+library(tidymodels)
+
+data("RF_abund")
+fish_dat <- RF_abund %>%
+  filter(SpeciesName == "Thalassoma pavo") %>%
+  mutate(Presence = as.factor(Presence))
+```
+
+```{r RF2-check}
+ls()
+```
+
+## Test Set
+
+- Split off a test set to evaluate model at the very end!
+
+```{r RF22, exercise=TRUE}
+set.seed(1234)
+data_split <- initial_split(fish_dat, 0.8, strata = Presence)
+
+train_data <- training(data_split)
+test_data <- testing(data_split)
+
+train_data
+test_data
+```
+
+
+```{r RF22-check}
+ls()
+```
+
+## Make a `recipe`
+
+- Transform data to make it less skewed and centered on zero.
+
+```{r recipe2, exercise=TRUE}
+RF_recipe <- recipe(train_data,
+                    Presence ~ MeanTemp_CoralWatch + Depth_Site) %>%
+  step_YeoJohnson(MeanTemp_CoralWatch, Depth_Site) %>%
+  step_normalize(MeanTemp_CoralWatch, Depth_Site)
+RF_recipe
+```
+
+```{r recipe2-check}
+ls()
+```
+
+## Make a `model`
+
+- Setup the model object
+
+```{r model1, exercise=TRUE}
+RF_mod <-
+  boost_tree() %>%
+  set_engine('xgboost') %>%
+  set_mode('classification')
+
+RF_mod
+
+```
+
+```{r model1-check}
+ls()
+```
+
+## A `workflow` is a `recipe` and a `model`
+
+```{r wf1, exercise=TRUE}
+RF_wf <- workflow() %>%
+  add_recipe(RF_recipe) %>%
+  add_model(RF_mod)
+
+RF_wf
+
+```
+
+```{r wf1-check}
+ls()
+```
+
+## Use `fit` to run a workflow then visualize predictions
+
+Run the following code:
+
+```{r wf2, exercise=TRUE}
+RF_fit <- RF_wf %>%
+  fit(train_data)
+
+RF_train_preds <- augment(RF_fit, train_data)
+
+ggplot(RF_train_preds, aes(MeanTemp_CoralWatch, as.numeric(Presence) - 1)) +
+  geom_line(aes(y = .pred_1)) +
+  geom_point() +
+  theme_minimal()
+
+```
+
+```{r wf2-check}
+ls()
+```
+
+## How good were the predictions on the test data?
+
+```{r wf3, exercise=TRUE}
+augment(RF_fit, test_data) %>%
+    roc_auc(.pred_0, truth = Presence)
+```
+
+```{r wf3-check}
+ls()
+```
+
+## How to tune the model to improve performance
+
+- We use `tune()` as a placemarker for a hyper-parameter
+
+```{r model10, exercise=TRUE}
+RF_mod <-
+  boost_tree(trees = tune(), learn_rate = tune()) %>%
+  set_engine('xgboost') %>%
+  set_mode('classification')
+
+RF_wf <- workflow() %>%
+  add_recipe(RF_recipe) %>%
+  add_model(RF_mod)
+
+RF_wf
+
+```
+
+```{r model10-check}
+ls()
+```
+
+## Resamples for Cross Validation
+
+```{r model11, exercise=TRUE}
+fish_folds <- vfold_cv(train_data, v = 6, repeats = 2, strata = Presence)
+fish_folds
+```
+
+```{r model11-check}
+ls()
+```
+
+## Create Hyperparameter Grid
+
+```{r grid, exercise=TRUE}
+tree_grid <- grid_regular(trees(range = c(0, 5), trans = scales::log_trans()),
+                          learn_rate(),
+                          levels = 5)
+tree_grid
+```
+
+```{r grid-check}
+ls()
+```
+
+
+## Run the model on a grid of hyper-parameters
+
+```{r model12, exercise=TRUE}
+RF_res <- RF_wf %>%
+  tune_grid(fish_folds,
+            grid = tree_grid,
+            control = control_grid(save_pred = TRUE),
+            metrics = metric_set(roc_auc))
+
+RF_res
+```
+
+```{r model12-check}
+ls()
+```
+  
+## Best models?
+
+We can see the best models using the `show_best()` function.
+
+```{r model13, exercise=TRUE}
+RF_res %>%
+  show_best()
+```
+
+```{r model13-check}
+ls()
+```
+
+---
+
+We can plot all the results using `collect_metrics()` to collect our `roc_auc` values and then directly feed them into a `ggplot2` plot.
+
+```{r model_plot, exercise=TRUE}
+RF_res %>%
+  collect_metrics() %>%
+  mutate(learn_rate = factor(learn_rate)) %>%
+  ggplot(aes(trees, mean, color = learn_rate)) +
+  geom_line(size = 1.5, alpha = 0.6) +
+  geom_point(size = 2) +
+  scale_color_viridis_d(begin = .95, end = 0) +
+  scale_x_log10() +
+  theme_minimal()
+```
+
+```{r model_plot-check}
+ls()
+```
+
+## Final Fit
+
+```{r final_fit, exercise=TRUE}
+best_tree <- RF_res %>%
+  select_best("roc_auc")
+
+final_wf <- RF_wf %>% 
+  finalize_workflow(best_tree)
+
+final_wf
+```
+
+```{r final_fit-check}
+ls()
+```
+
+---
+
+```{r final_fit2, exercise=TRUE}
+final_fit <- 
+  final_wf %>%
+  last_fit(data_split)
+
+final_fit
+
+final_fit %>%
+  collect_metrics()
+
+RF_final_preds <- augment(final_fit$.workflow[[1]],
+                          fish_dat)
+
+ggplot(RF_final_preds, aes(MeanTemp_CoralWatch, as.numeric(Presence) - 1)) +
+  geom_line(aes(y = .pred_1)) +
+  geom_point() +
+  ylab("Probability of Presence") +
+  theme_minimal()
+```
+
+```{r final_fit2-check}
+ls()
+```
+
+## Plot Final Predictions on All Data
+
+```{r final_fit3, exercise=TRUE}
+RF_final_preds <- augment(final_fit$.workflow[[1]],
+                          fish_dat)
+
+ggplot(RF_final_preds, aes(MeanTemp_CoralWatch, as.numeric(Presence) - 1)) +
+  geom_line(aes(y = .pred_1)) +
+  geom_point() +
+  ylab("Probability of Presence") +
+  theme_minimal()
+```
+
+```{r final_fit3-check}
+ls()
+```
+
+## Endangered Pine Rocklands
+
+- Pine Rocklands, as with an 'ecosystem' is defined by its unique assemblage of
+species
+- Can we predict which plant communities are Pine Rocklands from their species
+assemblage?
+
+## Flip the Script
+
+- We model the distribution of Pine Rockland throughout South Florida parks
+- Response is Pine Rockland, Yes or No?
+- Predictors are: plant species
+- Pine Rocklands is 'the species' being modelled, the presence or absence of 
+different plants are the 'environmental variables'
+- In the assignment this week we will all attempt this model bu using different
+models and / or parameters
+
+## Let's Go Through the Model Together
+
+```{r PR_model1, exercise=TRUE}
+data("IRC")
+data("parks_LC")
+
+parks_LC
+```
+
+```{r PR_model1-check}
+ls()
+```
+
+---
+
+Parks that have Pine Rockland:
+ 
+```{r PR_model1-2, exercise=TRUE}
+PR_parks <- parks_LC %>%
+  filter(NAME_STATE == "Pine Rockland",
+         prop > 0.05)
+
+PR_parks
+
+nrow(PR_parks) / n_distinct(parks_LC$area_name)
+```
+
+```{r PR_model1-2-check}
+ls()
+```
+
+---
+
+Turn this into a presence / absence column
+ 
+```{r PR_model2, exercise=TRUE}
+PR_parks <- parks_LC %>%
+  select(area_name) %>%
+  distinct() %>%
+  left_join(PR_parks %>%
+              mutate(Pine_Rockland = "Present") %>%
+              select(area_name, Pine_Rockland)) %>%
+  mutate(Pine_Rockland = ifelse(is.na(Pine_Rockland), "Absent", Pine_Rockland) %>%
+           as.factor())
+
+PR_parks
+```
+
+```{r PR_model2-check}
+ls()
+```
+
+---
+
+Now for our predictors. Introducing `pivot_wider()` from `tidyr`
+ 
+```{r PR_model3, exercise=TRUE}
+spec_preds <- IRC %>%
+  mutate(Occurrence = ifelse(Occurrence == "Present", 1, 0)) %>%
+  select(area_name, ScientificName, Occurrence) %>%
+  distinct(area_name, ScientificName, .keep_all = TRUE) %>%
+  pivot_wider(names_from = ScientificName,
+              values_from = Occurrence)
+
+spec_preds
+```
+
+```{r PR_model3-check}
+ls()
+```
+
+---
+
+Merge the data.
+ 
+```{r PR_model4, exercise=TRUE}
+PR_parks <- PR_parks %>%
+  left_join(spec_preds)
+
+PR_parks
+
+```
+
+```{r PR_model4-check}
+ls()
+```
+
+
+## Try a Model, Step by Step
+
+Split the data:
+
+```{r PR_model_split, exercise=TRUE}
+
+set.seed(1234)
+PR_split <- initial_split(PR_parks, 0.8, strata = Pine_Rockland)
+
+PR_train <- training(PR_split)
+PR_test <- testing(PR_split)
+
+```
+
+```{r PR_model_split-check}
+ls()
+```
+
+---
+
+Setup a recipe (very simple this time):
+
+```{r PR_model_recipe, exercise=TRUE}
+PR_recipe <- recipe(Pine_Rockland ~ ., data = PR_train) %>%
+  update_role(area_name, new_role = "id variable")
+
+```
+
+```{r PR_model_recipe-check}
+ls()
+```
+
+---
+
+Setup a model:
+
+```{r PR_model_mod, exercise=TRUE}
+PR_mod <-
+  rand_forest(trees = tune(), mtry = tune()) %>%
+  set_engine('ranger') %>%
+  set_mode('classification')
+
+PR_wf <- workflow() %>%
+  add_recipe(PR_recipe) %>%
+  add_model(PR_mod)
+
+PR_wf
+
+```
+
+```{r PR_model_mod-check}
+ls()
+```
+
+---
+
+Setup resamples:
+
+```{r PR_model_resample, exercise=TRUE}
+PR_folds <- vfold_cv(PR_train, v = 6, strata = Pine_Rockland)
+PR_folds
+```
+
+```{r PR_model_resample-check}
+ls()
+```
+
+---
+
+Fit workflow on tuning grid:
+
+```{r PR_model_tune, exercise=TRUE}
+PR_tune <- PR_wf %>%
+  tune_grid(PR_folds,
+            grid = 25,
+            metrics = metric_set(roc_auc),
+            control = control_grid(verbose = TRUE))
+
+PR_tune
+```
+
+```{r PR_model_tune-check}
+ls()
+```
+
+--- 
+
+Find best model:
+
+```{r PR_model_best, exercise=TRUE}
+PR_tune %>%
+  show_best()
+
+PR_best <- PR_tune %>%
+  select_best("roc_auc")
+
+PR_best
+```
+
+```{r PR_model_best-check}
+ls()
+```
+
+---
+
+Do final fit:
+
+```{r PR_final_fit, exercise=TRUE}
+PR_final_wf <- PR_wf %>% 
+  update_model(rand_forest(trees = PR_best$trees,
+                           mtry = PR_best$mtry) %>%
+                 set_mode("classification") %>%
+                 set_engine("ranger",
+                            importance = "impurity"))
+
+PR_final_fit <- 
+  PR_final_wf %>%
+  last_fit(PR_split)
+
+PR_final_fit %>%
+  collect_metrics()
+```
+
+```{r PR_final_fit-check}
+ls()
+```
+
+---
+
+Importance scores:
+
+```{r PR_final_fit2, exercise=TRUE}
+library(vip)
+
+PR_final_fit %>% 
+  extract_fit_parsnip() %>% 
+  vip(num_features = 20)
+
+```
+
+```{r PR_final_fit2-check}
+ls()
+```
+
+---
+
+```{r PR_final_fit3, exercise=TRUE}
+PR_final_wf2 <- PR_wf %>% 
+  update_model(rand_forest(trees = PR_best$trees,
+                           mtry = PR_best$mtry) %>%
+                 set_mode("classification") %>%
+                 set_engine("ranger",
+                            importance = "permutation"))
+
+PR_final_wf2 %>%
+  last_fit(PR_split) %>%
+  extract_fit_parsnip() %>% 
+  vip(num_features = 30)
+
+
+```
+
+```{r PR_final_fit3-check}
+ls()
+```
+
