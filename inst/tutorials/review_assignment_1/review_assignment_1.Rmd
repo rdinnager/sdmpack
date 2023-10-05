@@ -222,15 +222,14 @@ parks_recipe
 ls()
 ```
 
-### Exercise 4: Setup a Model and Workflow
+### Exercise 5: Setup a Model and Workflow
 
 You are going to fit a Boosted Regression Tree model. Fill in the first blank to create a Boosted Regression Tree model object called `parks_mod`. All hyper-parameter arguments have been named and filled with `NULL`. This tells `boost_tree()` to use thir default values. Choose *two* of the hyper-parameters and replace `NULL` so that the hyper-parameters are flagged to be tuned later.
 Lastly, fill in the blank on the last line with code to set the mode to `'classification'`.
 
 *exercise 5:*
 ```{r exercise_5, exercise=TRUE}
-parks_mod <- boost_tree(mtry = NULL,
-                        trees = NULL,
+parks_mod <- boost_tree(trees = NULL,
                         min_n = NULL,
                         tree_depth = NULL,
                         learn_rate = NULL,
@@ -269,7 +268,7 @@ Now we will tune the model using your cross validation folds. If this step is ta
 
 *exercise_7:*
 ```{r exercise_7, exercise=TRUE}
-parks_tune <- parks_wf %>%
+parks_tune <- parks_wf |>
   tune_grid(parks_folds,
             grid = 16,
             metrics = metric_set(roc_auc))
@@ -286,7 +285,7 @@ ls()
 We can see the best models using the `show_best()` function.
 
 ```{r model13, exercise=TRUE}
-parks_tune %>%
+parks_tune |>
   show_best()
 ```
 
@@ -306,16 +305,17 @@ question_numeric("What was to `roc_auc` value of your best model?",
                    } else {
                      return(incorrect("That number is not between 0 and 1, so cannot be an roc_auc value."))
                    }
-                 }))
+                 }),
+                 allow_retry = TRUE)
 ```
 
 Run the following code to extract the best fit model and then use its hyper-parameters to finalize your workflow.
 
 ```{r final_fit, exercise=TRUE}
-parks_best <- parks_tune %>%
+parks_best <- parks_tune |>
   select_best("roc_auc")
 
-final_wf <- parks_wf %>% 
+final_wf <- parks_wf |> 
   finalize_workflow(parks_best)
 
 final_wf
@@ -330,7 +330,7 @@ Now we can run one last fit of our model using the `last_fit()` function. Fill i
 *exercise_8:*
 ```{r exercise_8, exercise=TRUE}
 final_fit <- 
-  final_wf %>%
+  final_wf |>
   last_fit(___)
 
 final_fit
@@ -343,15 +343,14 @@ ls()
 
 ### Exercise 9: See what variables are important for your species
 
-We can extract our model from the `last_fit` object and then visualize the importance values that were calculated using the `vip` package.
+We can extract our model from the `last_fit` object and then visualize the importance values that were calculated using the `vip` package. There seems to be a bug in the tutorial that causes this to not work sometimes. If you get the error: `'argument is of length zero'`, then try pasting this code in the RStudio console to see the result.
 
 ```{r PR_final_fit2, exercise=TRUE}
 library(vip)
 
-final_fit %>% 
-  extract_fit_parsnip() %>% 
-  vip()
+fit <- extract_fit_parsnip(final_fit)
 
+vip(fit)
 ```
 
 ```{r PR_final_fit2-check}
@@ -378,29 +377,31 @@ ls()
 
 Make predictions for your full dataset (`mysp_dat`) using the `augment()` function. Call the object `mysp_preds`
 
-```{r model_predict, exercise=TRUE}
+*exercise_b2:*
+```{r exercise_b2, exercise=TRUE}
 mysp_preds <- ___
 
 ```
 
-```{r model_predict-check}
+```{r exercise_b2-check}
 ls()
 ```
 
-<div id="model_predict-hint">
-**Hint:** A previous code block extracted the fitted workflow object and stored it in `LC_wf_fit`. You can use this object with `augment()` to make predictions on new data (see `?augment.workflow'.
+<div id="exercise_b2-hint">
+**Hint:** A previous code block extracted the fitted workflow object and stored it in `fit`. You can use this object with `augment()` to make predictions on new data (see `?augment.workflow'), where the new data will actually be your full dataset `mysp_dat`.
 </div>
 
 ### Bonus Exercise 3
 
-Plot the predictions you just made against the most important `size` using `geom_line()`.
+Plot the predictions you just made against the most important variable in your model according to `vip()`, using `geom_line()`.
 
-```{r model_plot, exercise=TRUE}
+*exercise_b3:*
+```{r exercise_b3, exercise=TRUE}
 ggplot(___, aes(___)) +
   geom_line(___)
 ```
 
-```{r model_plot-check}
+```{r exercise_b3-check}
 ls()
 ```
 
@@ -420,15 +421,17 @@ Once you have completed the assignment to your satisfaction, please click the 'g
 learnrhash::encoder_ui(ui_before = NULL)
 ```
 
-<!--
 ### Decode
 
+If you want to double-check the answers that the code above stores, paste it here and click 'Decode!'. 
+
+This assignment should have 8 official exercises (not including the 3 bonus), so you should see 8 chunks of code if you have completed the assignment, each prefixed with exercise_i: (where i is the exercise number). There is also one question, so you should see one chunk of text prefixed with 'question_j' (where j is question number).
+
 ```{r context="server"}
-learnrhash::decoder_logic()
+sdmpack::decoder_logic()
 ```
 
 ```{r decode, echo=FALSE}
-learnrhash::decoder_ui()
+sdmpack::decoder_ui()
 ```
--->
 
