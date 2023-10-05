@@ -11,3 +11,4 @@
 ^extdata$
 ^lectures$
 ^vignettes/articles$
+^README\.Rmd$
