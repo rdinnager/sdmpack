@@ -1,0 +1,431 @@
+---
+title: "SDM Course Review Assignment 1"
+output: 
+  learnr::tutorial:
+    progressive: false
+    allow_skip: true
+    language:
+      en:
+        button:
+          runcode: Test Code
+          submitanswer: Run Code
+          questionsubmit: Submit Answer
+          questiontryagain: Change my answer
+runtime: shiny_prerendered
+description: SDM Course Review Assignment 1
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(sdmpack)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    #fofpack::send_env_to_RStudio(envir_prep)
+    
+    if(label != "PR_model_tune") {
+      rstudioapi::sendToConsole(user_code, focus = TRUE)
+    }
+    
+    sdmpack::set_env(envir_result)
+    
+    # try(save.image(file.path(system.file(package = "fofpack"), "week_5_progress.Rdata"),
+    #            safe = FALSE),
+    #     silent = TRUE)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker,
+                 exercise.timelimit = 3600)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Florida Pine Rocklands
+
+In this assignment we will be working with data for South Florida parks. You will be constructing a model to predict the occurrence of a plant species using environmental variables and proportional land cover as predictors. You will be assigned a species randomly. Fill in the blank below with your name and click 'Run Code' and your assignment will be generated. Please read the results to see which species you are working on. Otherwise, everyone's assignment is the same.
+
+### Setup
+
+```{r setup, include=FALSE}
+library(sdmpack)
+library(tidyverse)
+library(tidymodels)
+
+```
+
+The following code loads the packages you will need for this assignment, and the dataset you will be using (and clears the workspace). Don't forget to always click 'Run Code' for each code box, which runs your code in RStudio, and allows you to access the results in later code boxes.
+
+Note that in order to run this code you will first have to make sure you have reinstalled the latest version of `sdmpack` (as of October 5, 2023). You will also need the `vip` package for this assignment, so make sure you install it before you start. Also, make sure you have the package `xgboost` installed (you should have installed it already for a previous assignment).
+
+The data you will be working with is in the dataset names `miami_parks`.
+
+```{r do_setup, exercise=TRUE}
+rm(list = ls())
+library(sdmpack)
+library(tidyverse)
+library(tidymodels)
+
+data("miami_parks")
+my_name <- "___"
+
+sdmpack::set.seed.by.name(my_name)
+species <- miami_parks |>
+  filter(Introduced == "Not introduced") |>
+  filter(Occurrence %in% c("Present", "Absent")) |>
+  group_by(ScientificName) |>
+  summarise(num_pres = sum(Occurrence == "Present")) |>
+  filter(num_pres > 60, num_pres < 145) |>
+  slice_sample(n = 1) |>
+  pull(ScientificName)
+cat("The species you will be working with is:",
+    species, sep = "\n")
+```
+
+```{r do_setup-check}
+ls()
+```
+
+### Exercise 1: Filter your data
+
+Filter your the `IRC` dataset so that it only contains your species. Replace the blank with the correct code for the task. Note that the previous code block stored your species name in the R object `species`. You can choose to use this, or not!
+
+*excercise_1:*
+```{r exercise_1, exercise=TRUE}
+
+mysp_dat <- miami_parks |>
+  filter(___)
+
+mysp_dat
+
+```
+
+```{r exercise_1-check}
+ls()
+```
+
+### Remove any NA values
+
+There is missing data for some parks (not all parks have land cover data or environmental data). The Boosted Regression Tree model you will be using today cannot deal with missing data so we need to remove it. Run the next code box which uses the handy `drop_na()` function automatically remove any row that have any missing data.
+
+```{r drop_na, exercise=TRUE}
+
+mysp_dat <- mysp_dat |>
+  drop_na()
+
+mysp_dat
+
+```
+
+```{r drop_na-check}
+ls()
+```
+
+### Exercise 2: Split your data
+
+Split the data into a training and test dataset using `initial_split()`. Fill in the blanks below. Put 75% of the data in the training dataset. Use the `Occurrence` column as the `strata` argument. Then extract the training data set and put it in an object names `data_train`.
+
+*exercise_2:*
+```{r exercise_2, exercise=TRUE}
+
+parks_split <- initial_split(mysp_dat, prop = ___, strata = ___)
+
+parks_train <- ___
+
+parks_train
+```
+
+```{r exercise_2-check}
+ls()
+```
+
+### Exercise 3: Create Cross Validation Folds
+
+Fill in the blank below to make 2 to 10 cross validation folds of your data. In a real data analysis scenario 10 is a more typical values, but put a lower value if your computer is taking too long to run all the models later.
+
+*exercise_3*
+```{r exercise_3, exercise=TRUE}
+parks_folds <- vfold_cv(data_train, ___, strata = Occurrence)
+parks_folds
+```
+
+```{r exercise_3-check}
+ls()
+```
+
+
+### Exercise 4: Setup a recipe
+
+A `recipe` let's us apply a set of transformation to our data that are easily repeatable. 
+
+Recall we must specify all outcomes and predictors in a formula. WHen we have a lot of variables it can be tedious to type them all out in the formula. Instead we can use the a `.` to refer to all non-outcome variables like this `Occurrence ~ .`. However, here we have a few extra variables we don't want to use in the model. Luckily, we can filter these out in the recipe using the `step_select()` function, where we can use 'selection' functions to help us. For example, `starts_with()` will select all variable that start with a particular string. We also want to normalize our environmental variables. Fill in the blanks to nromalize the environmental variables. 
+
+*exercise_4:*
+```{r exercise_4, exercise=TRUE}
+parks_recipe <- recipe(Occurrence ~ ., 
+                       data = parks_train) |>
+  step_select(all_outcomes(), 
+              starts_with("LC: "),
+              temp_mean_bio01,
+              temp_variation_bio04,
+              rainfall_mean_bio12,
+              rainfall_variation_bio15,
+              skip = TRUE) |>
+  step____(temp_mean_bio01,
+                 ____,
+                 rainfall_mean_bio12,
+                 rainfall_variation_bio15)
+
+parks_recipe
+
+```
+
+```{r exercise_4-check}
+ls()
+```
+
+### Exercise 4: Setup a Model and Workflow
+
+You are going to fit a Boosted Regression Tree model. Fill in the first blank to create a Boosted Regression Tree model object called `parks_mod`. All hyper-parameter arguments have been named and filled with `NULL`. This tells `boost_tree()` to use thir default values. Choose *two* of the hyper-parameters and replace `NULL` so that the hyper-parameters are flagged to be tuned later.
+Lastly, fill in the blank on the last line with code to set the mode to `'classification'`.
+
+*exercise 5:*
+```{r exercise_5, exercise=TRUE}
+parks_mod <- boost_tree(mtry = NULL,
+                        trees = NULL,
+                        min_n = NULL,
+                        tree_depth = NULL,
+                        learn_rate = NULL,
+                        loss_reduction = NULL,
+                        sample_size = NULL,
+                        stop_iter = NULL) |>
+  set_mode(___)
+
+parks_mod
+```
+
+```{r exercise_5-check}
+ls()
+```
+
+### Exercise 6: Make Workflow
+
+Create a `workflow` object and add your recipe and model by filling in the blanks.
+
+*exercise_6:*
+```{r exercise_6, exercise=TRUE}
+parks_wf <- workflow() |>
+  add_model(____) |>
+  add_re____(____)
+
+parks_wf
+```
+
+```{r exercise_6-check}
+ls()
+```
+
+### Exercise 7: Tune the model
+
+Now we will tune the model using your cross validation folds. If this step is taking too long you can reduce the number in the argument `grid` to a lower number, or go back and choose a smaller number of CV folds earlier in exercise 3.
+
+*exercise_7:*
+```{r exercise_7, exercise=TRUE}
+parks_tune <- parks_wf %>%
+  tune_grid(parks_folds,
+            grid = 16,
+            metrics = metric_set(roc_auc))
+
+parks_tune
+```
+
+```{r exercise_7-check}
+ls()
+```
+
+### Exercise 8: Select the best model
+
+We can see the best models using the `show_best()` function.
+
+```{r model13, exercise=TRUE}
+parks_tune %>%
+  show_best()
+```
+
+```{r model13-check}
+ls()
+```
+
+*question_1:*
+```{r question_1}
+question_numeric("What was to `roc_auc` value of your best model?",
+                 answer_fn(function(ans) {
+                   if(!is.numeric(ans)) {
+                     return(incorrect("That is not a number!"))
+                   }
+                   if(ans <= 1 && ans >= 0) {
+                     return(correct("That is a number between 0 and 1"))
+                   } else {
+                     return(incorrect("That number is not between 0 and 1, so cannot be an roc_auc value."))
+                   }
+                 }))
+```
+
+Run the following code to extract the best fit model and then use its hyper-parameters to finalize your workflow.
+
+```{r final_fit, exercise=TRUE}
+parks_best <- parks_tune %>%
+  select_best("roc_auc")
+
+final_wf <- parks_wf %>% 
+  finalize_workflow(parks_best)
+
+final_wf
+```
+
+```{r final_fit-check}
+ls()
+```
+
+Now we can run one last fit of our model using the `last_fit()` function. Fill in the blank with the object you created at the beginning with the training / test split.
+
+*exercise_8:*
+```{r exercise_8, exercise=TRUE}
+final_fit <- 
+  final_wf %>%
+  last_fit(___)
+
+final_fit
+
+```
+
+```{r exercise_8-check}
+ls()
+```
+
+### Exercise 9: See what variables are important for your species
+
+We can extract our model from the `last_fit` object and then visualize the importance values that were calculated using the `vip` package.
+
+```{r PR_final_fit2, exercise=TRUE}
+library(vip)
+
+final_fit %>% 
+  extract_fit_parsnip() %>% 
+  vip()
+
+```
+
+```{r PR_final_fit2-check}
+ls()
+```
+
+### Bonus Exercise 1
+
+Plot the ROC curve for your model for the test data.
+
+*exercise_b1:*
+```{r exercise_b1, exercise=TRUE}
+last_fit |>
+  collect_predictions() |>
+  roc_curve(.pred, truth = ___) |>
+  autoplot()
+```
+
+```{r exercise_b1-check}
+ls()
+```
+
+### Bonus Exercise 2
+
+Make predictions for your full dataset (`mysp_dat`) using the `augment()` function. Call the object `mysp_preds`
+
+```{r model_predict, exercise=TRUE}
+mysp_preds <- ___
+
+```
+
+```{r model_predict-check}
+ls()
+```
+
+<div id="model_predict-hint">
+**Hint:** A previous code block extracted the fitted workflow object and stored it in `LC_wf_fit`. You can use this object with `augment()` to make predictions on new data (see `?augment.workflow'.
+</div>
+
+### Bonus Exercise 3
+
+Plot the predictions you just made against the most important `size` using `geom_line()`.
+
+```{r model_plot, exercise=TRUE}
+ggplot(___, aes(___)) +
+  geom_line(___)
+```
+
+```{r model_plot-check}
+ls()
+```
+
+That is it, you are done! Please submit your hash code to Canvas.
+
+
+## Submit
+
+```{r context="server"}
+learnrhash::encoder_logic()
+```
+
+Once you have completed the assignment to your satisfaction, please click the 'generate' button below. This will create a text code that you can copy and paste into the assignment text submission form on canvas, and which I can use to regenerate your answers. Please make sure you copy the entire code. The easiest way is to click the copy button in at the top right. This will copy the entire code to the clipboard.  
+
+
+```{r encode, echo=FALSE}
+learnrhash::encoder_ui(ui_before = NULL)
+```
+
+<!--
+### Decode
+
+```{r context="server"}
+learnrhash::decoder_logic()
+```
+
+```{r decode, echo=FALSE}
+learnrhash::decoder_ui()
+```
+-->
+
