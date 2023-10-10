@@ -99,6 +99,11 @@ generate_assignments <- function(path,
 
   hashes[map_int(hashes, length) > 1] <- ""
 
+  failed <- map_lgl(hashes, ~ length(.x) == 0)
+
+  hashes[failed] <- rep("Something went wrong. You probably will have to generate this assignment manually.",
+                        sum(failed))
+
   hashes <- flatten_chr(hashes)
 
   rmds <- file.path(output_path,
