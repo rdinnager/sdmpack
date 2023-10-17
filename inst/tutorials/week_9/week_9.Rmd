@@ -1,0 +1,319 @@
+---
+title: "SDM Course: Week 9 Assignment"
+output: 
+  learnr::tutorial:
+    progressive: false
+    language:
+      en:
+        button:
+          runcode: Test Code
+          submitanswer: Run Code
+          questionsubmit: Submit Answer
+          questiontryagain: Change my answer
+runtime: shiny_prerendered
+description: SDM Course Week 9 Assignment
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(fofpack)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    #fofpack::send_env_to_RStudio(envir_prep)
+    
+    if(label != "PR_model_tune") {
+      rstudioapi::sendToConsole(user_code, focus = TRUE)
+    }
+    
+    fofpack::set_env(envir_result)
+    
+    # try(save.image(file.path(system.file(package = "fofpack"), "week_5_progress.Rdata"),
+    #            safe = FALSE),
+    #     silent = TRUE)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker,
+                 exercise.timelimit = 300)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Forests of the Future Week 9 Assignment
+
+## Part 1
+
+### Reef Fish - Adding Space
+
+### Setup
+
+```{r setup, include=FALSE}
+library(fofpack)
+library(tidyverse)
+library(tidymodels)
+library(rgbif)
+library(sf)
+library(mapview)
+library(spatialsample)
+
+data("RF_abund")
+data("RF_sites")
+```
+
+The following code loads the packages you will need for this assignment, and the dataset you will be using (and clears the workspace). Don't forget to always click 'Run Code' for each code box, which runs your code in RStudio, and allows you to access the results in later code boxes.
+
+The below code also runs a map using `mapview()`. `mapview()` creates an html map that must be viewed in the RStudio viewer. To see the map switch back to your RStudio window and look in the Viewer tab.
+
+```{r do_setup, exercise=TRUE}
+rm(list = ls())
+library(fofpack)
+library(tidyverse)
+library(tidymodels)
+library(rgbif)
+library(sf)
+library(mapview)
+library(spatialsample)
+data("RF_abund")
+data("RF_sites")
+
+## generate random fish dataset!
+fish_dat <- RF_abund %>%
+  filter(SpeciesName == sample(unique(SpeciesName), 1)) %>%
+  mutate(Presence = as.factor(Presence)) %>%
+  left_join(st_as_sf(RF_sites, coords = c("SiteLong", "SiteLat"),
+                  crs = 4326) %>%
+              select(SiteCode)) %>%
+  st_sf()
+
+mapview(fish_dat, zcol = "Presence")
+```
+
+```{r do_setup-check}
+ls()
+```
+
+```{r q1}
+question_text("Does your fish species appear to cluster spatially anywhere in the world? Briefly describe the distribution:",
+              answer_fn(function(x) incorrect()),
+              allow_retry = TRUE)
+
+```
+
+### Make two Cross Validation objects
+
+```{r cvs, exercise=TRUE}
+## Regular cross validation
+RF_cv <- vfold_cv(fish_dat, v = 8)
+## Spatial cross validation: buffer = 100 km (units are in meters)
+RF_spat_cv <- spatial_block_cv(fish_dat, v = 8, buffer = 100000) 
+
+RF_cv
+RF_spat_cv
+
+autoplot(RF_spat_cv)
+```
+
+```{r cvs-check}
+ls()
+```
+
+By default `spatial_block_cv()` will create an equal number of grid points in both the x and y directions. This means if your points are more spread out along one dimension than the other, then the grid-cells will be stretched along that dimension. It is generally better to have at least somewhat square grid-cells.
+Experiment with the argument `n` to make your grid-cells more square. `n` is a length 2 vector giving the number of cells in the x and y directions respectively. Try reducing this number for the less spread out dimension. Also try changing the argument `square` to `FALSE`.
+
+```{r cvs2, exercise=TRUE}
+## Spatial cross validation: buffer = 100 km (units are in meters)
+RF_spat_cv <- spatial_block_cv(fish_dat, v = 8, buffer = 100000,
+                               n = c(10, 10), square = TRUE) 
+
+autoplot(RF_spat_cv)
+```
+
+```{r cvs2-check}
+ls()
+```
+
+### Run model on Regular Cross Validation Splits
+
+Run the following:
+
+```{r RF_reg, exercise=TRUE}
+
+set.seed(1234)
+
+RF_recipe <- recipe(as_tibble(analysis(RF_cv$splits[[1]])),
+                    Presence ~ MeanTemp_CoralWatch + Depth_Site) %>%
+  step_YeoJohnson(MeanTemp_CoralWatch, Depth_Site) %>%
+  step_normalize(MeanTemp_CoralWatch, Depth_Site)
+
+RF_mod <-
+  boost_tree() %>%
+  set_engine('xgboost') %>%
+  set_mode('classification')
+
+RF_wf <- workflow() %>%
+  add_recipe(RF_recipe) %>%
+  add_model(RF_mod)
+
+RF_fit <- RF_wf %>%
+  fit_resamples(RF_cv)
+
+RF_fit %>%
+  collect_metrics()
+
+```
+
+```{r RF_reg-check}
+ls()
+```
+
+### Run model on Regular Cross Validation Splits
+
+Run the following:
+
+```{r RF_spat, exercise=TRUE}
+RF_spat_recipe <- recipe(as_tibble(analysis(RF_spat_cv$splits[[1]])),
+                    Presence ~ MeanTemp_CoralWatch + Depth_Site) %>%
+  step_YeoJohnson(MeanTemp_CoralWatch, Depth_Site) %>%
+  step_normalize(MeanTemp_CoralWatch, Depth_Site)
+
+RF_spat_mod <-
+  boost_tree() %>%
+  set_engine('xgboost') %>%
+  set_mode('classification')
+
+RF_spat_wf <- workflow() %>%
+  add_recipe(RF_spat_recipe) %>%
+  add_model(RF_spat_mod)
+
+RF_spat_fit <- RF_spat_wf %>%
+  fit_resamples(RF_spat_cv)
+
+RF_spat_fit %>%
+  collect_metrics()
+
+```
+
+```{r RF_spat-check}
+ls()
+```
+
+
+```{r q2}
+question("Look at the mean `roc_auc`. Did it go down or up? By how much?",
+         answer("Went up by quite a bit", correct = TRUE),
+         answer("Didn't go up or down by very much", correct = TRUE),
+         answer("Went down by quite a bit", correct = TRUE))
+
+```
+
+
+## Part 2
+
+### Choose a species to look up on GBIF
+
+We ran a model in a previous class that attempted to predict the distribution of Pine Rockland plants. I've pooled out the 20 plant species that best predicted Pine Rockland. I've added these, along with some animal species know to frequent Pine Rocklands to a Google sheet here: .
+Please go to the spreadsheet and choose a species by putting your initials in the designated column. Please take a species that hasn't been taken already, unless there is none left.
+
+Go to [GBIF](https://www.gbif.org) and search for your species using the scientific name. If the species is widespread, limit the records to South Florida using the Location filter (use Lake Okeechobee as a rough guide, limit records to South of there until the southernmost Florida keys). I will go over how to do this in class!
+
+Once you start the Download process, you may have to wait awhile for it to complete. if it is taking more than about 15 minutes, you can complete the next section using an example GBIF download (download key: `"0105582-220831081235567"`).
+
+### Use the `{rgbif}` package to get your data
+
+Replace the blank with your download key (can be found in the download URL).
+
+```{r rgbif, exercise=TRUE}
+gbif_data <- occ_download_get("___")
+gbif <- occ_download_import(gbif_data)
+```
+
+```{r rgbif-check}
+ls()
+```
+
+### Convert your data to `sf` and map it
+
+Print out the column names of the GBIF data and try and figure out which columns are the spatial coordinates. Once you've found them, use `st_as_sf()` to convert your GBIF data to `sf`.
+
+```{r colnames, exercise=TRUE}
+
+```
+
+```{r colnames-check}
+ls()
+```
+
+Make you `sf` object here:
+
+```{r gbif_sf, exercise=TRUE}
+gbif_sf <- st_as_sf(gbif, coords = ___, crs = 4326)
+
+mapview(gbif_sf)
+```
+
+```{r gbif_sf-check}
+ls()
+```
+
+## Submit
+
+```{r context="server"}
+learnrhash::encoder_logic()
+```
+
+Once you have completed the assignment to your satisfaction, please click the 'generate' button below. This will create a text code that you can copy and paste into the assignment text submission form on canvas, and which I can use to regenerate your answers. Please make sure you copy the entire code. The easiest way is to click the copy button in at the top right. This will copy the entire code to the clipboard.  
+
+
+```{r encode, echo=FALSE}
+learnrhash::encoder_ui(ui_before = NULL)
+```
+
+<!--
+### Decode
+
+```{r context="server"}
+learnrhash::decoder_logic()
+```
+
+```{r decode, echo=FALSE}
+learnrhash::decoder_ui()
+```
+-->
+
+
