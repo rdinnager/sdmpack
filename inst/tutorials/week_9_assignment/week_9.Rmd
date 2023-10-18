@@ -45,7 +45,7 @@ description: SDM Course Week 9 Assignment
 
 ```{r setup_hide, include=FALSE}
 library(learnr)
-library(fofpack)
+library(sdmpack)
 
 custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
   # this is a code check
@@ -70,12 +70,12 @@ custom_checker <- function(label, user_code, check_code, envir_result, evaluate_
 }
 
 tutorial_options(exercise.checker = custom_checker,
-                 exercise.timelimit = 300)
+                 exercise.timelimit = 1200)
 
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-## Forests of the Future Week 9 Assignment
+## SDM Course Week 9 Assignment
 
 ## Part 1
 
@@ -102,7 +102,7 @@ The below code also runs a map using `mapview()`. `mapview()` creates an html ma
 
 ```{r do_setup, exercise=TRUE}
 rm(list = ls())
-library(fofpack)
+library(sdmpack)
 library(tidyverse)
 library(tidymodels)
 library(rgbif)
@@ -252,7 +252,7 @@ Please go to the spreadsheet and choose a species by putting your initials in th
 
 Go to [GBIF](https://www.gbif.org) and search for your species using the scientific name. If the species is widespread, limit the records to South Florida using the Location filter (use Lake Okeechobee as a rough guide, limit records to South of there until the southernmost Florida keys). I will go over how to do this in class!
 
-Once you start the Download process, you may have to wait awhile for it to complete. if it is taking more than about 15 minutes, you can complete the next section using an example GBIF download (download key: `"0105582-220831081235567"`).
+Once you start the Download process, you may have to wait awhile for it to complete. If it is taking more than about 15 minutes, you can complete the next section using an example GBIF download (download key: `"0105582-220831081235567"`).
 
 ### Use the `{rgbif}` package to get your data
 
@@ -272,7 +272,7 @@ ls()
 Print out the column names of the GBIF data and try and figure out which columns are the spatial coordinates. Once you've found them, use `st_as_sf()` to convert your GBIF data to `sf`.
 
 ```{r colnames, exercise=TRUE}
-
+colnames(gbif)
 ```
 
 ```{r colnames-check}
