@@ -2,7 +2,7 @@
 title: "SDM Course: Week 9 Lecture"
 output: 
   ioslides_presentation:
-    logo: https://rdinnager.github.io/sdmpack/images/animation.gif
+    logo: images/animation.gif
     widescreen: true
 runtime: shiny_prerendered
 description: SDM Course Week 9 Lecture
