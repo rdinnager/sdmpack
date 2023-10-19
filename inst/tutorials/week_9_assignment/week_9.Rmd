@@ -3,6 +3,7 @@ title: "SDM Course: Week 9 Assignment"
 output: 
   learnr::tutorial:
     progressive: false
+    allow_skip: true
     language:
       en:
         button:
@@ -45,7 +46,7 @@ description: SDM Course Week 9 Assignment
 
 ```{r setup_hide, include=FALSE}
 library(learnr)
-library(fofpack)
+library(sdmpack)
 
 custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
   # this is a code check
@@ -70,12 +71,10 @@ custom_checker <- function(label, user_code, check_code, envir_result, evaluate_
 }
 
 tutorial_options(exercise.checker = custom_checker,
-                 exercise.timelimit = 300)
+                 exercise.timelimit = 1200)
 
 knitr::opts_chunk$set(echo = FALSE)
 ```
-
-## Forests of the Future Week 9 Assignment
 
 ## Part 1
 
@@ -84,7 +83,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ### Setup
 
 ```{r setup, include=FALSE}
-library(fofpack)
+library(sdmpack)
 library(tidyverse)
 library(tidymodels)
 library(rgbif)
@@ -102,7 +101,7 @@ The below code also runs a map using `mapview()`. `mapview()` creates an html ma
 
 ```{r do_setup, exercise=TRUE}
 rm(list = ls())
-library(fofpack)
+library(sdmpack)
 library(tidyverse)
 library(tidymodels)
 library(rgbif)
@@ -128,7 +127,8 @@ mapview(fish_dat, zcol = "Presence")
 ls()
 ```
 
-```{r q1}
+*question_1:*
+```{r question_1}
 question_text("Does your fish species appear to cluster spatially anywhere in the world? Briefly describe the distribution:",
               answer_fn(function(x) incorrect()),
               allow_retry = TRUE)
@@ -156,7 +156,8 @@ ls()
 By default `spatial_block_cv()` will create an equal number of grid points in both the x and y directions. This means if your points are more spread out along one dimension than the other, then the grid-cells will be stretched along that dimension. It is generally better to have at least somewhat square grid-cells.
 Experiment with the argument `n` to make your grid-cells more square. `n` is a length 2 vector giving the number of cells in the x and y directions respectively. Try reducing this number for the less spread out dimension. Also try changing the argument `square` to `FALSE`.
 
-```{r cvs2, exercise=TRUE}
+*exercise_1:*
+```{r exercise_1, exercise=TRUE}
 ## Spatial cross validation: buffer = 100 km (units are in meters)
 RF_spat_cv <- spatial_block_cv(fish_dat, v = 8, buffer = 100000,
                                n = c(10, 10), square = TRUE) 
@@ -164,7 +165,7 @@ RF_spat_cv <- spatial_block_cv(fish_dat, v = 8, buffer = 100000,
 autoplot(RF_spat_cv)
 ```
 
-```{r cvs2-check}
+```{r exercise_1-check}
 ls()
 ```
 
@@ -202,7 +203,7 @@ RF_fit %>%
 ls()
 ```
 
-### Run model on Regular Cross Validation Splits
+### Run model on Spatial Cross Validation Splits
 
 Run the following:
 
@@ -233,8 +234,8 @@ RF_spat_fit %>%
 ls()
 ```
 
-
-```{r q2}
+*question_2:*
+```{r question_2}
 question("Look at the mean `roc_auc`. Did it go down or up? By how much?",
          answer("Went up by quite a bit", correct = TRUE),
          answer("Didn't go up or down by very much", correct = TRUE),
@@ -247,7 +248,7 @@ question("Look at the mean `roc_auc`. Did it go down or up? By how much?",
 
 ### Choose a species to look up on GBIF
 
-We ran a model in a previous class that attempted to predict the distribution of Pine Rockland plants. I've pooled out the 20 plant species that best predicted Pine Rockland. I've added these, along with some animal species know to frequent Pine Rocklands to a Google sheet here: .
+We ran a model in a previous class that attempted to predict the distribution of Pine Rockland plants. I've pooled out the 20 plant species that best predicted Pine Rockland. I've added these, along with some animal species know to frequent Pine Rocklands to a Google sheet [here](https://docs.google.com/spreadsheets/d/13gfKk5tfv2Tcn_o_PI42gII2tPuOL6KdkvZlQNLPcPA/edit?usp=sharing).
 Please go to the spreadsheet and choose a species by putting your initials in the designated column. Please take a species that hasn't been taken already, unless there is none left.
 
 Go to [GBIF](https://www.gbif.org) and search for your species using the scientific name. If the species is widespread, limit the records to South Florida using the Location filter (use Lake Okeechobee as a rough guide, limit records to South of there until the southernmost Florida keys). I will go over how to do this in class!
@@ -258,12 +259,13 @@ Once you start the Download process, you may have to wait awhile for it to compl
 
 Replace the blank with your download key (can be found in the download URL).
 
-```{r rgbif, exercise=TRUE}
+*exercise_2:*
+```{r exercise_2, exercise=TRUE}
 gbif_data <- occ_download_get("___")
 gbif <- occ_download_import(gbif_data)
 ```
 
-```{r rgbif-check}
+```{r exercise_2-check}
 ls()
 ```
 
@@ -272,7 +274,7 @@ ls()
 Print out the column names of the GBIF data and try and figure out which columns are the spatial coordinates. Once you've found them, use `st_as_sf()` to convert your GBIF data to `sf`.
 
 ```{r colnames, exercise=TRUE}
-
+colnames(gbif)
 ```
 
 ```{r colnames-check}
@@ -281,13 +283,14 @@ ls()
 
 Make you `sf` object here:
 
-```{r gbif_sf, exercise=TRUE}
+*exercise_3:*
+```{r exercise_3, exercise=TRUE}
 gbif_sf <- st_as_sf(gbif, coords = ___, crs = 4326)
 
 mapview(gbif_sf)
 ```
 
-```{r gbif_sf-check}
+```{r exercise_3-check}
 ls()
 ```
 
@@ -304,16 +307,15 @@ Once you have completed the assignment to your satisfaction, please click the 'g
 learnrhash::encoder_ui(ui_before = NULL)
 ```
 
-<!--
 ### Decode
 
+If you want to double-check the answers that the code above stores, paste it here and click 'Decode!'. 
+
 ```{r context="server"}
-learnrhash::decoder_logic()
+sdmpack::decoder_logic()
 ```
 
 ```{r decode, echo=FALSE}
-learnrhash::decoder_ui()
+sdmpack::decoder_ui()
 ```
--->
-
 
