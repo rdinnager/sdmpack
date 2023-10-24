@@ -1,0 +1,389 @@
+---
+title: "Forests of the Future: Week 10 Lecture Part 2"
+output: 
+  ioslides_presentation:
+    widescreen: true
+runtime: shiny_prerendered
+description: Forests of the Future Week 10 Lecture Part 2
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(fofpack)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    #fofpack::send_env_to_RStudio(envir_prep)
+    
+    rstudioapi::sendToConsole(user_code, focus = TRUE)
+    
+    fofpack::set_env(envir_result)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker,
+                 exercise.timelimit = 1200)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r setup, include=FALSE}
+library(ENMTools)
+library(tidyverse)
+library(tidymodels)
+library(spatialsample)
+library(tidysdm)
+library(sf)
+library(mapview)
+
+options(datatable.alloccol = 1024,
+        datatable.verbose = FALSE)
+```
+
+## Last class
+
+- We saw how to add 'pseudo-absences' to a presence-only data set to make modelling possible
+
+## This class
+
+- How to do spatial cross validation on presence / pseudo-absence data
+- Talk about the final project
+
+
+## An example SDM
+
+- Let's run through a full SDM analysis
+- We will use an example dataset in the `ENMTools` package
+
+```{r get_points, exercise=TRUE}
+library(ENMTools)
+library(tidyverse)
+library(tidymodels)
+library(spatialsample)
+library(tidysdm)
+library(sf)
+library(mapview)
+
+data("iberolacerta.clade")
+data("euro.worldclim")
+monticola <- iberolacerta.clade$species$monticola
+
+monticola <- st_as_sf(monticola$presence.points, 
+                      coords = c("Longitude", "Latitude"),
+                      crs = 4326)
+mapview(monticola)
+```
+```{r get_points-check}
+ls()
+```
+
+## Create Background Area
+
+```{r bg, exercise=TRUE}
+bg <- create_background(monticola, method = "ecoregion")
+mapview(bg)
+
+```
+
+```{r bg-check}
+ls()
+```
+
+## Sample Pseudo-Absences
+
+```{r bg_pnts, exercise=TRUE}
+monticola_dat <- sdm_data(monticola, bg = bg, n = 10000)
+monticola_dat
+
+mapview(monticola_dat, zcol = "present")
+
+```
+
+```{r bg_pnts-check}
+ls()
+```
+
+## Add environmental variables
+
+```{r env, exercise=TRUE}
+monticola_dat <- add_env_vars(monticola_dat, euro.worldclim)
+monticola_dat
+```
+
+```{r env-check}
+ls()
+```
+
+## Remove NAs
+
+```{r process, exercise=TRUE}
+monticola_dat <- monticola_dat %>%
+  drop_na(bio1:bio19)
+
+mapview(st_sf(monticola_dat), zcol = "bio1")
+```
+
+```{r process-check}
+ls()
+```
+
+## Spatial Cross Validation
+
+```{r cv, exercise=TRUE}
+## presence only (po) spatial CV
+cv_folds_spat <- po_spatial_buffer_vfold_cv(monticola_dat, presence = "present", n = c(24, 16),
+                                             v = 9)
+
+## look at the spatial folds
+autoplot(cv_folds_spat)
+
+autoplot(cv_folds_spat$splits[[2]])
+autoplot(cv_folds_spat$splits[[8]])
+
+## regular CV for comparison
+cv_folds <- vfold_cv(monticola_dat, 9)
+```
+
+```{r cv-check}
+ls()
+```
+
+
+## Make a recipe
+
+- Let's do some transformations
+
+```{r recipe, exercise=TRUE}
+monticola_recipe <- recipe(monticola_dat,
+                         vars = c("present",
+                                  as_tibble(monticola_dat) %>% select(bio1:bio19) %>% colnames()),
+                         roles = c("outcome", rep("predictor", 19))) %>%
+  step_YeoJohnson(all_predictors()) %>%
+  step_normalize(all_predictors())
+
+monticola_recipe
+```
+
+```{r recipe-check}
+ls()
+```
+
+## Make Model and Workflow
+
+```{r wf, exercise=TRUE}
+monticola_mod <- rand_forest() %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("classification")
+
+monticola_wf <- workflow() %>%
+  add_recipe(monticola_recipe) %>%
+  add_model(monticola_mod)
+
+monticola_wf
+```
+
+```{r wf-check}
+ls()
+```
+
+## Fit Workflow
+
+```{r fit, exercise=TRUE}
+monticola_fit <- monticola_wf %>%
+  fit_resamples(cv_folds,
+                control = control_resamples(extract = extract_fit_engine))
+
+monticola_fit %>%
+  collect_metrics()
+```
+
+```{r fit-check}
+ls()
+```
+
+## Fit Workflow with Spatial CV
+
+```{r fit_spat, exercise=TRUE}
+monticola_fit_spat <- monticola_wf %>%
+  fit_resamples(cv_folds_spat,
+                control = control_resamples(extract = extract_fit_engine))
+
+monticola_fit_spat %>%
+  collect_metrics()
+```
+
+```{r fit_spat-check}
+ls()
+```
+
+## Look at folds separately
+
+```{r metrics_folds, exercise=TRUE}
+monticola_fit_spat$.metrics
+
+```
+
+```{r metrics_folds-check}
+ls()
+
+```
+
+## Importance
+
+Let's have a look at the importance values determined by the random forest for our variables.
+
+```{r importance, exercise=TRUE}
+library(vip)
+library(patchwork)
+
+monticola_fit %>%
+  unnest(.extracts) %>%
+  pull(.extracts) %>%
+  map(vip) %>%
+  wrap_plots(ncol = 3, nrow = 3)
+
+```
+
+```{r importance-check}
+ls()
+```
+
+The ordering is reasonably consistent between different folds. Now, the spatial folds:
+
+---
+
+```{r importance2, exercise=TRUE}
+monticola_fit_spat %>%
+  unnest(.extracts) %>%
+  pull(.extracts) %>%
+  map(vip) %>%
+  wrap_plots(ncol = 3, nrow = 3)
+
+```
+
+```{r importance2-check}
+ls()
+```
+
+## Make a prediction dataset
+
+- We want to make predictions on a landscape
+- Use a grid:
+
+```{r grid, exercise=TRUE}
+monticola_grid <- sdm_data(monticola, bg,
+                         5000, sample_options = list(type = "regular")) %>%
+  filter(present == "absent")
+
+mapview(monticola_grid)
+```
+
+```{r grid-check}
+ls()
+```
+
+## Add environmental variable and predict
+
+```{r grid_env, exercise=TRUE}
+monticola_grid_dat <- add_env_vars(monticola_grid, euro.worldclim) %>%
+  drop_na(bio1:bio19)
+
+monticola_grid_dat
+
+final_fit <- monticola_wf %>%
+  fit(monticola_dat)
+
+monticola_preds <- final_fit %>% 
+  augment(monticola_grid_dat)
+```
+
+```{r grid_env-check}
+ls()
+```
+
+## Plot predictions
+
+```{r plot_pred, exercise=TRUE}
+coords <- st_coordinates(st_sf(monticola_preds))
+ggplot(monticola_preds %>% bind_cols(coords), aes(X, Y)) +
+  geom_sf(data = bg, inherit.aes = FALSE) +
+  geom_raster(aes(fill = .pred_present + 0.0001)) +
+  geom_sf(data = monticola, inherit.aes = FALSE, colour = "red",
+          size = 1.2) +
+  scale_fill_continuous(name = "Probability of Occurrence",
+                        trans = "logit") +
+  theme_minimal()
+```
+
+```{r plot_pred-check}
+ls()
+```
+
+## Final Projects
+
+- Next week we will all try and do a full SDM on GBIF data
+- No lectures, both classes will be for working
+- Hand in at the end of next week
+- There will be no assignment this week
+- This assignment can be used as part of the final project
+
+## Final Projects
+
+- Can be done in groups (max 6) or individually, but everyone will hand in their own work
+- Groups can share code / work together on working out how to run the models
+- Three Sub-assignments:
+  1. Project Plan
+  2. Project Code and Results
+  3. Project Presentation (Lightning Talk)
+- Details will be up on the course website by next week's first class
+  
+## 1. Project Plan (Preliminary Research)
+
+- A form on Canvas to fill out with:
+  - Name of chosen species
+  - Group members if applicable
+  - Written Sections:
+    - *Species:* Background research on the species (including drawing from academic article if available), their natural history.
+    - *Variables:* In an ideal world, what variables would be the most useful to model this species, based on what you discover about their biology?
+    - *Models:* What kind of model will you run? Research and choose 1 method, briefly explain how it works to the best of your ability. What hyper-parameters does it have?
+  - All sections will be short (less than 300 words)
+
+## Next Week
+
+- Do an SDM on your GBIF data
+

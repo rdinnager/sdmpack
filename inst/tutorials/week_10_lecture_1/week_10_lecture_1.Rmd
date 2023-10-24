@@ -1,0 +1,307 @@
+---
+title: "SDM Course: Week 10 Lecture"
+output: 
+  ioslides_presentation:
+    widescreen: true
+runtime: shiny_prerendered
+description: SDM Course Week 10 Lecture
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(sdmpack)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    #fofpack::send_env_to_RStudio(envir_prep)
+    
+    rstudioapi::sendToConsole(user_code, focus = TRUE)
+    
+    sdmpack::set_env(envir_result)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker,
+                 exercise.timelimit = 1200)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r setup, include=FALSE}
+library(sdmpack)
+library(tidyverse)
+library(sf)
+library(stars)
+library(mapview)
+
+options(datatable.alloccol = 1024,
+        datatable.verbose = FALSE)
+```
+
+## Last week
+
+- We saw how to do spatial cross validation in `{tidymodels}`
+- We downloaded occurrence points for a species using GBIF
+
+## Occurrence Data
+
+- Up until now every model of occurrence we have done has using Presence / Absence data
+- We had sites where we knew the species was present and where we knew it was absent
+- The model could then estimate variation in the 'probability' of occurrence across different sites
+- Occurrence point data we downloaded are only places we know the species is Present (no Absence data)
+
+## How to Model Presence-Only Data
+
+- If we tried to put the data through a model as is, the model would be unable to choose a sensible model
+- There is no variation for the model to explain
+- Therefore any model that always predicts presence will be equivalently good
+- We need to introduce variation
+
+## What Really Varies in Presence-Absence Data?
+
+- Density!
+- Points have higher density in some areas and lower in others
+
+## What is Density?
+
+- Density is a continuous analog of counts
+- Density is a count per unit area, at the limit of infinitesimal area (for a two dimensional space)
+- To estimate a density over a continuous space, we need to use integration
+
+## Quadrature
+
+- A simple way to estimate an integral is to sample a space randomly or regularly, estimate the value at each sample, and then take a weighted sum of the sample.
+- Noting that models estimate the expectation of a function (which can be formulated as a weighted sum), we can make our model predict the density of points in space by using random or regular 'background' points, often called 'pseudo-absences'.
+- In order to estimate true density requires carefully choosing observation weights and applying them in the model fitting, but not all models allow for weighting.
+- Without appropriate weighting we can still say the the model produces estimates that are proportional to density, which is often good enough.
+- We often just want to know where species are more or less likely to be, not the exact probability (although this is useful too, when possible).
+
+## Example of Pseudo-absences
+
+- Use `{tidysdm}`
+
+```{r get_points, exercise=TRUE}
+library(rgbif)
+library(tidysdm)
+library(spatialsample)
+
+sachsia <- occ_download_get("0107668-220831081235567") |>
+  occ_download_import()
+## convert to sf
+sachsia <- sachsia |>
+  select(long = decimalLongitude,
+         lat = decimalLatitude) |>
+  st_as_sf(coords = c("long", "lat"), crs = 4326)
+
+mapview(sachsia)
+```
+
+```{r get_points-check}
+ls()
+```
+
+## Create Background Area
+
+```{r bg, exercise=TRUE}
+bg <- create_background(sachsia, buffer = 20000, max_bg = florida)
+mapview(bg)
+
+```
+
+```{r bg-check}
+ls()
+```
+
+## Sample Pseudo-Absences
+
+```{r bg_pnts, exercise=TRUE}
+sachsia_dat <- sdm_data(sachsia, bg = bg, n = 10000)
+sachsia_dat
+
+mapview(sachsia_dat, zcol = "present")
+
+```
+
+```{r bg_pnts-check}
+ls()
+```
+
+## Add environmental variables
+
+```{r env, exercise=TRUE}
+sachsia_dat <- add_env_vars(sachsia_dat, bioclim_fl)
+sachsia_dat
+```
+
+```{r env-check}
+ls()
+```
+
+## Remove NAs
+
+```{r process, exercise=TRUE}
+sachsia_dat <- sachsia_dat |>
+  drop_na(BIO1:BIO19)
+mapview(st_sf(sachsia_dat), zcol = "present")
+mapview(st_sf(sachsia_dat), zcol = "BIO1")
+```
+
+```{r process-check}
+ls()
+```
+
+## Make a recipe
+
+- Let's do some transformations
+
+```{r recipe, exercise=TRUE}
+predictors <- sachsia_dat |> as_tibble() |> select(BIO1:BIO19) |> colnames()
+sachsia_recipe <- recipe(sachsia_dat,
+                         vars = c("present",
+                                  predictors),
+                         roles = c("outcome", rep("predictor", 19))) |>
+  step_YeoJohnson(all_predictors()) |>
+  step_normalize(all_predictors())
+
+sachsia_recipe
+```
+
+```{r recipe-check}
+ls()
+```
+
+## Make Model and Workflow
+
+```{r wf, exercise=TRUE}
+sachsia_mod <- rand_forest() |>
+  set_engine("ranger") |>
+  set_mode("classification")
+
+sachsia_wf <- workflow() |>
+  add_recipe(sachsia_recipe) |>
+  add_model(sachsia_mod)
+
+sachsia_wf
+```
+
+```{r wf-check}
+ls()
+```
+
+## Fit Workflow
+
+```{r fit, exercise=TRUE}
+sachsia_fit <- sachsia_wf |>
+  fit(sachsia_dat)
+
+sachsia_fit
+```
+
+```{r fit-check}
+ls()
+```
+
+## Make a prediction dataset
+
+- We want to make predictions on a landscape
+- Use a grid:
+
+```{r grid, exercise=TRUE}
+sachsia_grid <- sdm_data(sachsia, bg,
+                         5000, sample_options = list(type = "regular")) |>
+  filter(present == "absent")
+
+mapview(sachsia_grid)
+```
+
+```{r grid-check}
+ls()
+```
+
+## Add environmental variable and predict
+
+```{r grid_env, exercise=TRUE}
+sachsia_grid_dat <- add_env_vars(sachsia_grid, bioclim_fl) |>
+  drop_na(BIO1:BIO19)
+
+sachsia_grid_dat
+
+sachsia_preds <- sachsia_fit |> 
+  augment(sachsia_grid_dat)
+```
+
+```{r grid_env-check}
+ls()
+```
+
+## Plot predictions
+
+```{r plot_pred, exercise=TRUE}
+coords <- st_coordinates(st_sf(sachsia_preds))
+ggplot(sachsia_preds |> bind_cols(coords), aes(X, Y)) +
+  geom_sf(data = florida, inherit.aes = FALSE) +
+  geom_raster(aes(fill = .pred_present + 0.0001)) +
+  geom_sf(data = sachsia, inherit.aes = FALSE, colour = "red") +
+  scale_fill_viridis_c(name = "Probability of Occurrence",
+                        trans = "logit") +
+  coord_sf(ylim = c(24.5, 25.9), xlim = c(-81.6, -79.8)) +
+  theme_minimal()
+```
+
+```{r plot_pred-check}
+ls()
+```
+
+## Final Projects
+
+- Next week we will all try and do a full SDM on GBIF data
+- No lectures, both classes will be for working
+- Hand in at the end of next week
+- There will be no assignment this week
+- This assignment can be used as part of the final project
+
+## Final Projects
+
+## Next Class
+
+- Lecture will cover:
+  - Poisson regression for count data
+  - How to weight points in model to make output more interpretable
+  - Evaluating SDM
+  - More on Final Projects
+
