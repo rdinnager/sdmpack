@@ -58,7 +58,7 @@ custom_checker <- function(label, user_code, check_code, envir_result, evaluate_
       rstudioapi::sendToConsole(user_code, focus = TRUE)
     }
     
-    fofpack::set_env(envir_result)
+    sdmpack::set_env(envir_result)
     
     # try(save.image(file.path(system.file(package = "fofpack"), "week_5_progress.Rdata"),
     #            safe = FALSE),
