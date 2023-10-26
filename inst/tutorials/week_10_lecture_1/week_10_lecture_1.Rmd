@@ -116,6 +116,9 @@ options(datatable.alloccol = 1024,
 - Use `{tidysdm}`
 
 ```{r get_points, exercise=TRUE}
+library(sdmpack)
+library(sf)
+library(mapview)
 library(rgbif)
 library(tidysdm)
 library(spatialsample)
