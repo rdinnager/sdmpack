@@ -1,10 +1,10 @@
 ---
-title: "Forests of the Future: Week 10 Lecture Part 2"
+title: "SDM Course: Week 10 Lecture Part 2"
 output: 
   ioslides_presentation:
     widescreen: true
 runtime: shiny_prerendered
-description: Forests of the Future Week 10 Lecture Part 2
+description: SDM Course Week 10 Lecture Part 2
 ---
 
 ```{css echo=FALSE}
@@ -38,7 +38,7 @@ description: Forests of the Future Week 10 Lecture Part 2
 
 ```{r setup_hide, include=FALSE}
 library(learnr)
-library(fofpack)
+library(sdmpack)
 
 custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
   # this is a code check
@@ -108,6 +108,7 @@ monticola <- st_as_sf(monticola$presence.points,
                       crs = 4326)
 mapview(monticola)
 ```
+
 ```{r get_points-check}
 ls()
 ```
@@ -152,7 +153,7 @@ ls()
 ## Remove NAs
 
 ```{r process, exercise=TRUE}
-monticola_dat <- monticola_dat %>%
+monticola_dat <- monticola_dat |>
   drop_na(bio1:bio19)
 
 mapview(st_sf(monticola_dat), zcol = "bio1")
@@ -191,9 +192,9 @@ ls()
 ```{r recipe, exercise=TRUE}
 monticola_recipe <- recipe(monticola_dat,
                          vars = c("present",
-                                  as_tibble(monticola_dat) %>% select(bio1:bio19) %>% colnames()),
-                         roles = c("outcome", rep("predictor", 19))) %>%
-  step_YeoJohnson(all_predictors()) %>%
+                                  as_tibble(monticola_dat) |> dplyr::select(bio1:bio19) |> colnames()),
+                         roles = c("outcome", rep("predictor", 19))) |>
+  step_YeoJohnson(all_predictors()) |>
   step_normalize(all_predictors())
 
 monticola_recipe
@@ -206,12 +207,12 @@ ls()
 ## Make Model and Workflow
 
 ```{r wf, exercise=TRUE}
-monticola_mod <- rand_forest() %>%
-  set_engine("ranger", importance = "impurity") %>%
+monticola_mod <- rand_forest() |>
+  set_engine("ranger", importance = "impurity") |>
   set_mode("classification")
 
-monticola_wf <- workflow() %>%
-  add_recipe(monticola_recipe) %>%
+monticola_wf <- workflow() |>
+  add_recipe(monticola_recipe) |>
   add_model(monticola_mod)
 
 monticola_wf
@@ -224,11 +225,11 @@ ls()
 ## Fit Workflow
 
 ```{r fit, exercise=TRUE}
-monticola_fit <- monticola_wf %>%
+monticola_fit <- monticola_wf |>
   fit_resamples(cv_folds,
                 control = control_resamples(extract = extract_fit_engine))
 
-monticola_fit %>%
+monticola_fit |>
   collect_metrics()
 ```
 
@@ -239,11 +240,11 @@ ls()
 ## Fit Workflow with Spatial CV
 
 ```{r fit_spat, exercise=TRUE}
-monticola_fit_spat <- monticola_wf %>%
+monticola_fit_spat <- monticola_wf |>
   fit_resamples(cv_folds_spat,
                 control = control_resamples(extract = extract_fit_engine))
 
-monticola_fit_spat %>%
+monticola_fit_spat |>
   collect_metrics()
 ```
 
@@ -271,10 +272,10 @@ Let's have a look at the importance values determined by the random forest for o
 library(vip)
 library(patchwork)
 
-monticola_fit %>%
-  unnest(.extracts) %>%
-  pull(.extracts) %>%
-  map(vip) %>%
+monticola_fit |>
+  unnest(.extracts) |>
+  pull(.extracts) |>
+  map(vip) |>
   wrap_plots(ncol = 3, nrow = 3)
 
 ```
@@ -288,10 +289,10 @@ The ordering is reasonably consistent between different folds. Now, the spatial 
 ---
 
 ```{r importance2, exercise=TRUE}
-monticola_fit_spat %>%
-  unnest(.extracts) %>%
-  pull(.extracts) %>%
-  map(vip) %>%
+monticola_fit_spat |>
+  unnest(.extracts) |>
+  pull(.extracts) |>
+  map(vip) |>
   wrap_plots(ncol = 3, nrow = 3)
 
 ```
@@ -307,7 +308,7 @@ ls()
 
 ```{r grid, exercise=TRUE}
 monticola_grid <- sdm_data(monticola, bg,
-                         5000, sample_options = list(type = "regular")) %>%
+                         5000, sample_options = list(type = "regular")) |>
   filter(present == "absent")
 
 mapview(monticola_grid)
@@ -320,15 +321,15 @@ ls()
 ## Add environmental variable and predict
 
 ```{r grid_env, exercise=TRUE}
-monticola_grid_dat <- add_env_vars(monticola_grid, euro.worldclim) %>%
+monticola_grid_dat <- add_env_vars(monticola_grid, euro.worldclim) |>
   drop_na(bio1:bio19)
 
 monticola_grid_dat
 
-final_fit <- monticola_wf %>%
+final_fit <- monticola_wf |>
   fit(monticola_dat)
 
-monticola_preds <- final_fit %>% 
+monticola_preds <- final_fit |> 
   augment(monticola_grid_dat)
 ```
 
@@ -340,7 +341,7 @@ ls()
 
 ```{r plot_pred, exercise=TRUE}
 coords <- st_coordinates(st_sf(monticola_preds))
-ggplot(monticola_preds %>% bind_cols(coords), aes(X, Y)) +
+ggplot(monticola_preds |> bind_cols(coords), aes(X, Y)) +
   geom_sf(data = bg, inherit.aes = FALSE) +
   geom_raster(aes(fill = .pred_present + 0.0001)) +
   geom_sf(data = monticola, inherit.aes = FALSE, colour = "red",
@@ -385,5 +386,5 @@ ls()
 
 ## Next Week
 
-- Do an SDM on your GBIF data
+- Do an SDM on GIF data
 
