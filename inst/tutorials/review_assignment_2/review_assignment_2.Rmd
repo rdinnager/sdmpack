@@ -1,0 +1,373 @@
+---
+title: "SDM Course: Review Assignment 2"
+output: 
+  learnr::tutorial:
+    progressive: false
+    language:
+      en:
+        button:
+          runcode: Test Code
+          submitanswer: Run Code
+          questionsubmit: Submit Answer
+          questiontryagain: Change my answer
+runtime: shiny_prerendered
+description: SDM Course Review Assignment 2
+---
+
+```{css echo=FALSE}
+@media print {
+  .topicsContainer,
+  .topicActions,
+  .exerciseActions .skip {
+    display: none;
+  }
+  .topics .tutorialTitle,
+  .topics .section.level2,
+  .topics .section.level3:not(.hide) {
+    display: block;
+  }
+  .topics {
+    width: 100%;
+  }
+  .tutorial-exercise, .tutorial-question {
+    page-break-inside: avoid;
+  }
+  .section.level3.done h3 {
+    padding-left: 0;
+    background-image: none;
+  }
+  .topics .showSkip .exerciseActions::before {
+    content: "Topic not yet completed...";
+    font-style: italic;
+  }
+}
+```
+
+```{r setup_hide, include=FALSE}
+library(learnr)
+library(sdmpack)
+
+custom_checker <- function(label, user_code, check_code, envir_result, evaluate_result, envir_prep, last_value, stage, ...) {
+  # this is a code check
+  if(stage == "check") {
+    
+    #fofpack::send_env_to_RStudio(envir_prep)
+    
+    if(label != "PR_model_tune") {
+      rstudioapi::sendToConsole(user_code, focus = TRUE)
+    }
+    
+    sdmpack::set_env(envir_result)
+    
+    # try(save.image(file.path(system.file(package = "fofpack"), "week_5_progress.Rdata"),
+    #            safe = FALSE),
+    #     silent = TRUE)
+
+    list(message = "Code Run; Results Now Available in RStudio.", correct = TRUE, type = "success", location = "append")
+    
+  }
+
+}
+
+tutorial_options(exercise.checker = custom_checker,
+                 exercise.timelimit = 1200)
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+### SDM Course Review Assignment 2 (Week 11)
+
+### Let's Do an SDM
+
+Before you do anything, please make sure to click 'Start over' in the panel to the left. If you can't see the panel use the 'show in new window' icon in the upper left of the Tutorial pane to open the tutorial in a new window, then you should be able to see the left panel.
+
+We will use our downloaded GBIF data to run a presence-only SDM model. We will be using data on the species Coreopsis leavenworthii (Leavenworth's Tickseed). Coreopsis flowers are the state wildflower of Florida and can be found in Pine Rocklands amongst other habitat types. The download key for the data is `"0032282-231002084531237"`.
+
+### Setup
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(spatialsample)
+library(tidysdm)
+library(sf)
+library(mapview)
+library(sdmpack)
+
+options(datatable.alloccol = 1024,
+        datatable.verbose = FALSE)
+```
+
+### Part 1: Run an SDM
+
+First we load our libraries and download the GBIF points. Fill in the blank with your GBIF download key.
+
+```{r get_points, exercise=TRUE}
+library(tidyverse)
+library(tidymodels)
+library(sf)
+library(rgbif)
+library(tidysdm)
+library(spatialsample)
+library(sdmpack)
+
+gbif <- occ_download_get("0032282-231002084531237") %>%
+  occ_download_import()
+```
+
+```{r get_points-check}
+ls()
+```
+
+```{r exercise_1, exercise = TRUE}
+## convert to sf
+gbif <- gbif %>%
+  dplyr::select(decimalLongitude,
+         decimalLatitude) %>%
+  st_as_sf(coords = c("____", "____"), crs = 4326)
+
+mapview(gbif)
+```
+
+```{r exercise_1-check}
+ls()
+```
+
+### Create Background Area
+
+- Use the default method of 
+
+```{r bg, exercise=TRUE}
+bg <- create_background(gbif, buffer = 20000, max_bg = florida)
+mapview(bg)
+
+```
+
+```{r bg-check}
+ls()
+```
+
+### Sample Pseudo-Absences
+
+```{r bg_pnts, exercise=TRUE}
+gbif_dat <- sdm_data(gbif_dat, bg = bg, n = 10000)
+gbif_dat
+
+mapview(gbif_dat, zcol = "present")
+
+```
+
+```{r bg_pnts-check}
+ls()
+```
+
+### Add environmental variables
+
+```{r env, exercise=TRUE}
+gbif_dat <- add_env_vars(gbif_dat, bioclim_fl)
+gbif_dat
+```
+
+```{r env-check}
+ls()
+```
+
+### Remove NAs
+
+- It is just good practice (data cleaning)
+
+```{r process, exercise=TRUE}
+gbif_dat <- gbif_dat %>%
+  drop_na(BIO1:BIO19)
+
+mapview(st_sf(gbif_dat), zcol = "BIO1")
+```
+
+```{r process-check}
+ls()
+```
+
+### Spatial Cross Validation
+
+- We will just do spatial CV and not bother with regular CV
+
+```{r cv, exercise=TRUE}
+## presence only (po) spatial CV
+cv_folds_spat <- po_spatial_buffer_vfold_cv(st_sf(gbif_dat), presence = "present", n = c(24, 16),
+                                            v = 9)
+
+## look at the spatial folds
+autoplot(cv_folds_spat)
+
+autoplot(cv_folds_spat$splits[[2]])
+autoplot(cv_folds_spat$splits[[8]])
+```
+
+```{r cv-check}
+ls()
+```
+
+### Make a recipe
+
+- We are going to do a simple Generalised Linear Model this time (GLM), with a penalty to help choose the best predictors.
+- This means to model somewhat more complicated functions of the environment we need to create polynomial terms from our predictors, which can be done in the recipe using `step_poly()`.
+
+```{r recipe, exercise=TRUE}
+gbif_recipe <- recipe(gbif_dat, vars = c("present", gbif_dat %>% dplyr::select(BIO1:BIO19) %>% colnames()),
+                         roles = c("outcome", rep("predictor", 19))) %>%
+  step_poly(all_predictors())
+
+gbif_recipe
+```
+
+```{r recipe-check}
+ls()
+```
+
+### Make Model and Workflow
+
+```{r wf, exercise=TRUE}
+gbif_mod <- logistic_reg(penalty = tune()) %>%
+  set_engine("glmnet") %>%
+  set_mode("classification")
+
+gbif_wf <- workflow() %>%
+  add_recipe(gbif_recipe) %>%
+  add_model(gbif_mod)
+
+gbif_wf
+```
+
+```{r wf-check}
+ls()
+```
+
+### Tune the Penalty Parameters
+
+```{r tune, exercise=TRUE}
+gbif_tune <- gbif_wf %>%
+  tune::tune_grid(cv_folds_spat,
+                  grid = 25)
+
+gbif_tune %>%
+  show_best("roc_auc")
+
+```
+
+```{r tune-check}
+ls()
+```
+
+### Final Fit
+
+```{r final_fit, exercise=TRUE}
+best_params <- gbif_tune %>%
+  select_best("roc_auc")
+
+final_wf <- 
+  gbif_wf %>% 
+  finalize_workflow(best_params)
+
+gbif_fit <- final_wf %>%
+  fit(gbif_dat)
+
+```
+
+```{r final_fit-check}
+ls()
+```
+
+### Have a Look at the Model Coefficients
+
+```{r coefs, exercise=TRUE}
+coefs <- gbif_fit %>%
+  tidy()
+coefs
+```
+
+```{r coefs-check}
+ls()
+```
+
+We can cross-check which coefficients were good predictors with what the variables actually are using `bioclim_vars`
+
+```{r vars, exercise=TRUE}
+bioclim_vars
+```
+
+```{r vars-check}
+ls()
+```
+
+
+### Part 2: Visualize the predictions!
+
+- This is where you will have to be creative.
+- Visualise the predictions from you model:
+
+### Make Predictions
+
+```{r grid, exercise=TRUE}
+gbif_grid <- sdm_data(gbif, bg,
+                         5000, sample_options = list(type = "regular")) %>%
+  filter(present == "absent")
+
+gbif_grid_dat <- add_env_vars(gbif_grid, bioclim_fl) %>%
+  drop_na(BIO1:BIO19)
+
+gbif_preds <- gbif_fit %>% 
+  augment(gbif_grid_dat)
+
+gbif_preds
+```
+
+```{r grid-check}
+ls()
+```
+
+### Visualise the predictions
+
+```{r box, exercise=TRUE}
+
+
+
+
+
+
+
+
+
+
+```
+
+```{r box-check}
+ls()
+```
+
+
+## Submit
+
+```{r context="server"}
+learnrhash::encoder_logic()
+```
+
+Once you have completed the assignment to your satisfaction, please click the 'generate' button below. This will create a text code that you can copy and paste into the assignment text submission form on canvas, and which I can use to regenerate your answers. Please make sure you copy the entire code. The easiest way is to click the copy button in at the top right. This will copy the entire code to the clipboard.  
+
+
+```{r encode, echo=FALSE}
+learnrhash::encoder_ui(ui_before = NULL)
+```
+
+<!--
+### Decode
+
+```{r context="server"}
+learnrhash::decoder_logic()
+```
+
+```{r decode, echo=FALSE}
+learnrhash::decoder_ui()
+```
+-->
+
+
