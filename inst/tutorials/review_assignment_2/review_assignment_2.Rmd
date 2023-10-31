@@ -119,6 +119,11 @@ gbif <- occ_download_get("0032282-231002084531237") %>%
 ls()
 ```
 
+## Exercise 1
+
+Convert the GBIF data into an `sf` object. Replace the blanks with the correct variable names referring to the coordinates in the `gbif` data.frame.
+
+*exercise_1: *
 ```{r exercise_1, exercise = TRUE}
 ## convert to sf
 gbif <- gbif %>%
@@ -133,35 +138,56 @@ mapview(gbif)
 ls()
 ```
 
-### Create Background Area
+### Exercise 2: Create Background Area
 
-- Use the default method of 
+Fill in the blank to use the 'ecoregion' based method for generating a background area. Use the documentation of `create_background` to find out what methods are available.
 
-```{r bg, exercise=TRUE}
-bg <- create_background(gbif, buffer = 20000, max_bg = florida)
+*exercise_2: *
+```{r exercise_2, exercise=TRUE}
+bg <- create_background(gbif, method = ____,
+                        buffer = 20000, max_bg = florida)
 mapview(bg)
 
 ```
 
-```{r bg-check}
+```{r exercise_2-check}
 ls()
 ```
 
-### Sample Pseudo-Absences
+*question_1: *
 
-```{r bg_pnts, exercise=TRUE}
-gbif_dat <- sdm_data(gbif_dat, bg = bg, n = 10000)
+```{r question_1}
+question_checkbox("What are the possible methods for creating a background area available in `create_background()`?",
+                  answer("concave_hull", correct = TRUE),
+                  answer("convex_hull", correct = TRUE),
+                  answer("starship_hull", correct = FALSE),
+                  answer("point_buffer", correct = TRUE),
+                  answer("pointless_buffer", correct = FALSE),
+                  answer("ecoregion", correct = TRUE),
+                  answer("grid_fill", correct = TRUE),
+                  answer("user_fill", correct = TRUE))
+```
+
+### Exercise 3: Sample Pseudo-Absences
+
+Fill in the blanks to sample ten thousand (10000) points from the background area you just created.
+
+*exercise_3: *
+```{r exercise_3, exercise=TRUE}
+gbif_dat <- sdm_data(gbif, bg = ____, n = ____)
 gbif_dat
 
 mapview(gbif_dat, zcol = "present")
 
 ```
 
-```{r bg_pnts-check}
+```{r exercise_3-check}
 ls()
 ```
 
 ### Add environmental variables
+
+Use `add_env_vars()` to add environmental variable by running the following code:
 
 ```{r env, exercise=TRUE}
 gbif_dat <- add_env_vars(gbif_dat, bioclim_fl)
@@ -174,33 +200,34 @@ ls()
 
 ### Remove NAs
 
-- It is just good practice (data cleaning)
+It is just good data cleaning practice to remove any missing values that you might have in your data. Fill in the blank with the correct function to remove NA values from BIO1 to BIO19. You will have seen this function several times in the course already. 
 
-```{r process, exercise=TRUE}
+```{r exercise_4, exercise=TRUE}
 gbif_dat <- gbif_dat %>%
-  drop_na(BIO1:BIO19)
+  ____(BIO1:BIO19)
 
 mapview(st_sf(gbif_dat), zcol = "BIO1")
 ```
 
-```{r process-check}
+```{r exercise_4-check}
 ls()
 ```
 
+<div id="exercise_4-hint">
+**Hint:** The function is in the package `tidyr`. If you type `tidyr::` autocomplete will show you a list of all functions in `tidyr`. Or you can type `?tidyr` in the console and then click the link at the very bottom of the help page where it says 'Index'. This will show you a list of all functions in `tidyr` as well.
+</div>
+
 ### Spatial Cross Validation
 
-- We will just do spatial CV and not bother with regular CV
+We are going to do spatial cross validation for our model. We will each run 5 folds. Setup the folds and visualize them by running the following:
 
 ```{r cv, exercise=TRUE}
 ## presence only (po) spatial CV
 cv_folds_spat <- po_spatial_buffer_vfold_cv(st_sf(gbif_dat), presence = "present", n = c(24, 16),
-                                            v = 9)
+                                            v = 5)
 
 ## look at the spatial folds
 autoplot(cv_folds_spat)
-
-autoplot(cv_folds_spat$splits[[2]])
-autoplot(cv_folds_spat$splits[[8]])
 ```
 
 ```{r cv-check}
@@ -209,12 +236,14 @@ ls()
 
 ### Make a recipe
 
-- We are going to do a simple Generalised Linear Model this time (GLM), with a penalty to help choose the best predictors.
-- This means to model somewhat more complicated functions of the environment we need to create polynomial terms from our predictors, which can be done in the recipe using `step_poly()`.
+We are all going to do a simple Generalised Linear Model this time (GLM), with a penalty to help choose the best predictors.
+This means to model somewhat more complicated functions of the environment we need to create polynomial terms from our predictors, which can be done in the recipe using `step_poly()`. We will also want to do our usual transformation and normalization. Here we use the `all_predictors()` selection helper. This just tells the recipe to apply the step to all predictor variables. We could have also used `BIO1:BIO19` to accomplish the same thing.
 
 ```{r recipe, exercise=TRUE}
-gbif_recipe <- recipe(gbif_dat, vars = c("present", gbif_dat %>% dplyr::select(BIO1:BIO19) %>% colnames()),
+gbif_recipe <- recipe(gbif_dat, vars = c("present", as_tibble(gbif_dat) %>% dplyr::select(BIO1:BIO19) %>% colnames()),
                          roles = c("outcome", rep("predictor", 19))) %>%
+  step_YeoJohnson(all_predictors()) %>%
+  step_normalize(all_predictors()) %>%
   step_poly(all_predictors())
 
 gbif_recipe
@@ -224,10 +253,13 @@ gbif_recipe
 ls()
 ```
 
-### Make Model and Workflow
+### Exercise 5: Make Model and Workflow
 
-```{r wf, exercise=TRUE}
-gbif_mod <- logistic_reg(penalty = tune()) %>%
+Setup the model by filling in the blank. `logistic_reg()` only has two hyper-parameters. We want to tune them both. To find out what they are, don't forget you can use the R documentation. Try typing `?logistic_reg` to see what arguments it takes (and remember that `mode` and `engine` are set by `set_engine()` and `set_mode()`).
+
+*exercise_5: *
+```{r exercise_5, exercise=TRUE}
+gbif_mod <- logistic_reg(____ = ____, ____ = ____) %>%
   set_engine("glmnet") %>%
   set_mode("classification")
 
@@ -238,16 +270,19 @@ gbif_wf <- workflow() %>%
 gbif_wf
 ```
 
-```{r wf-check}
+```{r exercise_5-check}
 ls()
 ```
 
 ### Tune the Penalty Parameters
 
+Now we tune our model based on our spatial cross validation folds. Using `tune_grid()`, run 25 values of the hyper-parameters. If this is taking much too long, you can try reducing to 16 or 9.
+
 ```{r tune, exercise=TRUE}
 gbif_tune <- gbif_wf %>%
-  tune::tune_grid(cv_folds_spat,
-                  grid = 25)
+  tune_grid(cv_folds_spat,
+            grid = 25,
+            control = control_grid(save_workflow = TRUE))
 
 gbif_tune %>%
   show_best("roc_auc")
@@ -255,6 +290,17 @@ gbif_tune %>%
 ```
 
 ```{r tune-check}
+ls()
+```
+
+The `gbif_tune` object is what you need to save for the assignment. Run the following code to open a dialog box and choose where you will save the file. You will need to upload this file to complete the assignment so don't forget where you saved it! The file by default will be called `"tuned_workflows.rds"`, but you can change the file name if you want.
+
+```{r save_file, exercise = TRUE}
+write_rds(gbif_tune, file = file.path(rstudioapi::selectDirectory(),
+                                      "tuned_workflows.rds"))
+```
+
+```{r save_file-check}
 ls()
 ```
 
