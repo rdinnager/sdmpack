@@ -81,7 +81,13 @@ knitr::opts_chunk$set(echo = FALSE)
 
 Before you do anything, please make sure to click 'Start over' in the panel to the left. If you can't see the panel use the 'show in new window' icon in the upper left of the Tutorial pane to open the tutorial in a new window, then you should be able to see the left panel.
 
-We will use our downloaded GBIF data to run a presence-only SDM model. We will be using data on the species Coreopsis leavenworthii (Leavenworth's Tickseed). Coreopsis flowers are the state wildflower of Florida and can be found in Pine Rocklands amongst other habitat types. The download key for the data is `"0032282-231002084531237"`.
+You will likely have to install one new package, called `butcher`, before you proceed. Don't forget to close this tutorial and reopen it after you install the package. Also, if you have not installed `tidysdm` yet, it is not on CRAN so you cannot use the usual package install method. The easiest way to install it is to run the following:
+
+```{r install_tidysdm}
+install.packages("tidysdm", repos = c("https://rdinnager.r-universe.dev", "https://cloud.r-project.org"))
+```
+
+We will use our downloaded GBIF data to run a presence-only SDM model. We will be using data on the species Coreopsis leavenworthii (Leavenworth's Tickseed). Coreopsis flowers are the state wildflower of Florida and can be found in Pine Rocklands amongst other habitat types. The download key for the data is `"0032282-231002084531237"`. 
 
 ### Setup
 
@@ -92,6 +98,7 @@ library(spatialsample)
 library(tidysdm)
 library(sf)
 library(mapview)
+library(butcher) 
 library(sdmpack)
 
 options(datatable.alloccol = 1024,
@@ -100,7 +107,7 @@ options(datatable.alloccol = 1024,
 
 ### Part 1: Run an SDM
 
-First we load our libraries and download the GBIF points. Fill in the blank with your GBIF download key.
+First we load our libraries and download the GBIF points. Run the following code to setup.
 
 ```{r get_points, exercise=TRUE}
 library(tidyverse)
@@ -110,6 +117,8 @@ library(rgbif)
 library(tidysdm)
 library(spatialsample)
 library(sdmpack)
+library(butcher) ## this one is new
+library(mapview)
 
 gbif <- occ_download_get("0032282-231002084531237") %>%
   occ_download_import()
@@ -154,10 +163,19 @@ mapview(bg)
 ls()
 ```
 
-*question_1: *
+```{r codebox, exercise = TRUE}
 
+
+
+```
+
+```{r codebox-check}
+ls()
+```
+
+*question_1: *
 ```{r question_1}
-question_checkbox("What are the possible methods for creating a background area available in `create_background()`?",
+question_checkbox("What are the possible methods for creating a background area available in `create_background()`? You can use the code box above to try and find the answer (or use the RStudio console if you prefer)",
                   answer("concave_hull", correct = TRUE),
                   answer("convex_hull", correct = TRUE),
                   answer("starship_hull", correct = FALSE),
@@ -204,9 +222,10 @@ It is just good data cleaning practice to remove any missing values that you mig
 
 ```{r exercise_4, exercise=TRUE}
 gbif_dat <- gbif_dat %>%
-  ____(BIO1:BIO19)
+  ____(BIO1:BIO19) %>%
+  st_sf()
 
-mapview(st_sf(gbif_dat), zcol = "BIO1")
+mapview(gbif_dat, zcol = "BIO1")
 ```
 
 ```{r exercise_4-check}
@@ -223,7 +242,7 @@ We are going to do spatial cross validation for our model. We will each run 5 fo
 
 ```{r cv, exercise=TRUE}
 ## presence only (po) spatial CV
-cv_folds_spat <- po_spatial_buffer_vfold_cv(st_sf(gbif_dat), presence = "present", n = c(24, 16),
+cv_folds_spat <- po_spatial_buffer_vfold_cv(gbif_dat, presence = "present", n = c(24, 16),
                                             v = 5)
 
 ## look at the spatial folds
@@ -237,19 +256,33 @@ ls()
 ### Make a recipe
 
 We are all going to do a simple Generalised Linear Model this time (GLM), with a penalty to help choose the best predictors.
-This means to model somewhat more complicated functions of the environment we need to create polynomial terms from our predictors, which can be done in the recipe using `step_poly()`. We will also want to do our usual transformation and normalization. Here we use the `all_predictors()` selection helper. This just tells the recipe to apply the step to all predictor variables. We could have also used `BIO1:BIO19` to accomplish the same thing.
+This means to model somewhat more complicated functions of the environment we need to create polynomial terms from our predictors, which can be done in the recipe using `step_poly()`. We will also want to do our usual transformation and normalization. 
 
 ```{r recipe, exercise=TRUE}
 gbif_recipe <- recipe(gbif_dat, vars = c("present", as_tibble(gbif_dat) %>% dplyr::select(BIO1:BIO19) %>% colnames()),
                          roles = c("outcome", rep("predictor", 19))) %>%
-  step_YeoJohnson(all_predictors()) %>%
-  step_normalize(all_predictors()) %>%
-  step_poly(all_predictors())
+  step_YeoJohnson(BIO1:BIO19) %>%
+  step_normalize(BIO1:BIO19) %>%
+  step_poly(BIO1:BIO19)
 
 gbif_recipe
 ```
 
 ```{r recipe-check}
+ls()
+```
+
+Sometimes recipes become very large because they capture the whole R environment. We want to save our workflows later so we want to make our recipe smaller. Run the following code to check the size of the recipe, then cut it down in size using `butcher()`, then check the size again. It should be smaller the second time.
+
+```{r butcher, exercise=TRUE}
+butcher::weigh(gbif_recipe)
+
+gbif_recipe <- butcher::butcher(gbif_recipe)
+
+butcher::weigh(gbif_recipe)
+```
+
+```{r butcher-check}
 ls()
 ```
 
@@ -282,7 +315,7 @@ Now we tune our model based on our spatial cross validation folds. Using `tune_g
 gbif_tune <- gbif_wf %>%
   tune_grid(cv_folds_spat,
             grid = 25,
-            control = control_grid(save_workflow = TRUE))
+            control = control_grid(save_workflow = TRUE), verbose = TRUE)
 
 gbif_tune %>%
   show_best("roc_auc")
@@ -293,7 +326,7 @@ gbif_tune %>%
 ls()
 ```
 
-The `gbif_tune` object is what you need to save for the assignment. Run the following code to open a dialog box and choose where you will save the file. You will need to upload this file to complete the assignment so don't forget where you saved it! The file by default will be called `"tuned_workflows.rds"`, but you can change the file name if you want.
+The `gbif_tune` object is what you need to save for the assignment. Run the following code to open a dialog box and choose where you will save the file. You will need to upload this file to complete the assignment so don't forget where you saved it! The file by default will be called `"tuned_workflows.rds"`, but you can change the file name if you want. Note that the dialog box will pop up twice, just use the same folder (the reason is the tutorial runs the code, then it gets run in RStudio again so that you have access to the object in your environment).
 
 ```{r save_file, exercise = TRUE}
 write_rds(gbif_tune, file = file.path(rstudioapi::selectDirectory(),
@@ -327,7 +360,8 @@ ls()
 
 ```{r coefs, exercise=TRUE}
 coefs <- gbif_fit %>%
-  tidy()
+  tidy() %>%
+  arrange(abs(coef))
 coefs
 ```
 
@@ -335,7 +369,7 @@ coefs
 ls()
 ```
 
-We can cross-check which coefficients were good predictors with what the variables actually are using `bioclim_vars`
+Note that in the general linear model, coefficients are interpretable as an importance measure, because they are calculated using standardised variables. Therefore, they can be thought of as the degree of change in the outcome or response variable with a one standard deviation change in the predictor variable. We can cross-check which coefficients were good predictors with what the variables actually are using `bioclim_vars`.
 
 ```{r vars, exercise=TRUE}
 bioclim_vars
@@ -345,11 +379,18 @@ bioclim_vars
 ls()
 ```
 
+Question 2: Which variable has the highest absolute value for its coefficient?
+
+```{r question_2}
+question_text("What is the name of the variable that had the highest absolute coefficient in your model? It could also be a polynomial combination of multiple variables.", answer("jkdsfhdfhkdh8945689456", correct = TRUE),
+              incorrect = "Answer recieved. Thank you! If you want to change your answer, click 'Try Again'",
+              try_again = "Answer recieved. Thank you! If you want to change your answer, click 'Try Again'",
+              allow_retry = TRUE)
+```
 
 ### Part 2: Visualize the predictions!
 
-- This is where you will have to be creative.
-- Visualise the predictions from you model:
+Visualise the predictions from you model. Note there are no exercises in this section, it is just for your information (and potentially useful for the final project)
 
 ### Make Predictions
 
@@ -373,16 +414,18 @@ ls()
 
 ### Visualise the predictions
 
+Run the following to see a map of your model predictions!
+
 ```{r box, exercise=TRUE}
 
-
-
-
-
-
-
-
-
+coords <- st_coordinates(st_sf(gbif_preds))
+ggplot(gbif_preds |> bind_cols(coords), aes(X, Y)) +
+  geom_sf(data = bg, inherit.aes = FALSE) +
+  geom_raster(aes(fill = .pred_present + 0.0001)) +
+  geom_sf(data = gbif, inherit.aes = FALSE, colour = "red",
+          size = 1.2) +
+  scale_fill_continuous(name = "Probability of Occurrence") +
+  theme_minimal()
 
 ```
 
@@ -390,30 +433,31 @@ ls()
 ls()
 ```
 
-
 ## Submit
 
 ```{r context="server"}
 learnrhash::encoder_logic()
 ```
 
-Once you have completed the assignment to your satisfaction, please click the 'generate' button below. This will create a text code that you can copy and paste into the assignment text submission form on canvas, and which I can use to regenerate your answers. Please make sure you copy the entire code. The easiest way is to click the copy button in at the top right. This will copy the entire code to the clipboard.  
+Once you have completed the assignment to your satisfaction, please click the 'generate' button below. This will create a text code that you can copy and paste into the assignment text submission form on canvas, and which I can use to regenerate your answers. Please make sure you copy the entire code. The easiest way is to click the copy button in at the top right. This will copy the entire code to the clipboard.
+
+For this assignment you will also have to upload the workflow object file that you saved previously as a file attachment to the assignment.
 
 
 ```{r encode, echo=FALSE}
 learnrhash::encoder_ui(ui_before = NULL)
 ```
 
-<!--
 ### Decode
 
+If you want to double-check the answers that the code above stores, paste it here and click 'Decode!'. 
+
 ```{r context="server"}
-learnrhash::decoder_logic()
+sdmpack::decoder_logic()
 ```
 
 ```{r decode, echo=FALSE}
-learnrhash::decoder_ui()
+sdmpack::decoder_ui()
 ```
--->
 
 
