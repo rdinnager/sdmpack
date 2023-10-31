@@ -361,7 +361,7 @@ ls()
 ```{r coefs, exercise=TRUE}
 coefs <- gbif_fit %>%
   tidy() %>%
-  arrange(abs(coef))
+  arrange(desc(abs(estimate)))
 coefs
 ```
 
